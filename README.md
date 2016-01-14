@@ -3,8 +3,8 @@ Reactive Programming for Couch Potatoes
 
 ## Abstract
 
-You've heard the yapping about reactive programming and how it's the bee's knees.
-But... you can't figure out how it works, and all the math-talk that comes up on [Wikipedia](https://en.wikipedia.org/wiki/Functional_reactive_programming) is confusing to you.
+You've heard the yapping about functional reactive programming and how it's the bee's knees.
+But... you can't figure out how it works, and all the math-talk and theory jargon that comes up on [Wikipedia](https://en.wikipedia.org/wiki/Functional_reactive_programming) is confusing to you.
 
 Together, we'll go through the concepts of streams, functions, and data flow.
 We'll take the concepts apart with diagrams and explain them in plain english.
