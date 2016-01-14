@@ -10,7 +10,7 @@ Fear not! Together, we'll go through the concepts of streams, functions, and dat
 We'll take the concepts apart with diagrams and explain them in plain English.
 
 With this newfound knowledge, we'll build ourselves a pedometer (step counter) with
-an HTML5 device accelerometer, some gumption, and basic math.
+an HTML5 device accelerometer, Bacon.js (a Javascript FRP library), some gumption, and basic math.
 
 We'll even talk a little bit about how these concepts apply to real
 world frameworks like React, Flux, and Elm. In the end, you'll not only
