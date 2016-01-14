@@ -19,5 +19,5 @@ to implement reactive programming principles in your next project.
 
 ## Further reading:
 
-* https://gist.github.com/staltz/868e7e9bc2a7b8c1f754
-* https://www.youtube.com/watch?v=3iKkwzlch0o
+* "The Introduction to Reactive Programming You've Been Missing": https://gist.github.com/staltz/868e7e9bc2a7b8c1f754
+* "OMG Streams!": https://www.youtube.com/watch?v=3iKkwzlch0o
