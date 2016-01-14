@@ -7,7 +7,7 @@ You've heard the yapping about functional reactive programming and how it's the 
 But... you can't figure out how it works, and all the math-talk and theory jargon that comes up on [Wikipedia](https://en.wikipedia.org/wiki/Functional_reactive_programming) is confusing to you.
 
 Fear not! Together, we'll go through the concepts of streams, functions, and data flow.
-We'll take the concepts apart with diagrams and explain them in plain english.
+We'll take the concepts apart with diagrams and explain them in plain English.
 
 With this newfound knowledge, we'll build ourselves a pedometer (step counter) with
 an HTML5 device accelerometer, some gumption, and basic math.
