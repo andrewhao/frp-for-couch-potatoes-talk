@@ -39,6 +39,7 @@ Like a plumbing pipe. Like you're trying to hook up a faucet to the
 water main, kind of pipe.
 
 [Image of pipe, water]
+
 [Potential Mario / pipe gag]
 
 Where have you seen streams before? A WebSocket. Anything in Node that
@@ -50,17 +51,18 @@ peek the entireity of, because it may potentially be infinite.
 
 (Stock price of AAPL) [1, 5, 10, 11, 22, ?...]
 
-### But streams are also things that you may not have considered
+### If you can build it with Events, you can model it as a stream.
 
 Anything you've been doing with Events could also be thought of as a
 stream.
 
 For example, you might think about the position of a mouse cursor on a
-screen as a stream. You have probably been printing something like this:
+screen as a stream. You have probably doing something like this:
 
 ```js
 $(window).on('mousemove', function(e) {
   console.log(e.target.x, e.target.y);
+  // do something with this new movement.
 });
 ```
 
@@ -82,18 +84,40 @@ as events (either explicitly, or as domain events), could be considered streams:
 OK, I promise I'll never do this to you again, but this name change is
 going to help. Streams are also termed Observables in Rx-land because
 they are like Arrays (or more generically, Sequences) that continuously
-grow over time, and you can observe on them.
+grow over time, and their changing value sequences are, well, observable.
 
 ### Why else is this important? There are things already called Observables out there!
 
-RxJs has an Observable interface. We shall use this.
+RxJs has an Observable interface. We shall use this. Anything in the
+ReactiveX family implements an Observable interface.
+
+Bacon.js and Kefir.js also implement Observables.
+
 ES7 ships with Observables (it's the FUTURE).
 
 ### F is for Functional.
 
+Let's recap: a function is a relationship between a set of inputs and a
+set of outputs.
+
 ```js
-f(x) = ?
+y = f(x)
+where f(x) -> x + 4
+
+x: 1 y: 5
+x: 2 y: 6
+x: 3 y: 7
 ```
+
+```js
+f(x) -> x < 10
+
+x: 1  y: true
+x: 11 y: false
+```
+
+The F in FRP relates to the fact that we are going to be using functions
+as first class citizens to model dataflow.
 
 ### Your function(al) toolbelt
 
@@ -104,24 +128,97 @@ available to programmers today.
 
 (See: RxMarbles examples)
 
-* map
+* `map()`
 
 ```js
-var data = [{x: 1}, {x: 2}, {x: -100}];
-data.map(function(datum) {
-  return datum.x > 0
-});
-// => [{x: 1}, {x: 2}]
+var data = [1, 2, -100];
+data.map(function(datum) { return datum > 0 });
+// => [true, true, false]
 ```
-* reduce
-* scan / fold
-* filter
+
+* `reduce()`
+
+Perform some sort of aggregate operation on a set of values, iteratively
+returning the result of the last run.
+
+```js
+var data = [1, 2, -100];
+data.reduce(function(previousValue, currentValue) {
+  return previousValue + currentValue;
+}, 0)
+
+// => -97
+```
+
+* `filter()`
+
+Only accepts values for which criteria returns true.
+
+```js
+var data = [1, 2, -100];
+data.filter(function(v) { return v > 0; });
+
+// => [1, 2]
+```
+
+### Now let's think of these functions in the context of streams.
+
+I'm going to introduce a new way of seeing code. We're going to take a
+timeline of values that pop into existence.
+
+Let's go back and look at our `map` example, but this time, `data` will
+be `dataStream`, some sampling of data that is generated asynchronously,
+such as from a websocket.
+
+```js
+var dataStream = bindToDataStream()
+outputStream = dataStream.map(function(datum) { return datum > 0 });
+```
+
+Now, when a value pops into existence on the `dataStream`, the `outputStream`
+will also produce a new value:
+
+```
+data   |-- [1] -- [2] -- [-100] -->
+output |-- [t] -- [t] --    [f] -->
+```
+
+Imagine this sort of thing could also happen with filter:
+
+```js
+outputStream = dataStream.filter(function(v) { return v > 0; });
+
+data   |-- [1] -- [2] -- [-100] -->
+output |-- [1] -- [2] ------------>
+```
+
+Magic.
+
+Now there *is* a `reduce` equivalent in streams, but it's probably not
+what you're looking for. You are probably looking for something like
+`scan`, which is like a partial-reduce.
+
+* `scan()` (aka `fold()`)
+
+Like reduce; it emits the intermediate accumulated value when a new
+value shows up.
+
+```js
+outputStream = dataStream.reduce(function(previousValue, currentValue) {
+  return previousValue + currentValue;
+}, 0)
+
+data   |------ [1] -- [2] -- [-100] -->
+output |[0] -- [1] -- [3] --- [-97] -->
+```
 
 ### Let's enter the world of FRP
 
 I'm going to hammer home these next few points, but the gist of FRP is:
 
-**map input signals, fold state, filter outputs**.
+* map input signals
+* fold state
+* filter outputs
 
 Let's take an example here with a form that submits a counter on a page.
 
