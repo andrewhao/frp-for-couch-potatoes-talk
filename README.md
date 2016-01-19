@@ -277,16 +277,101 @@ From Elm:
 
 In Elm, a signal = a Bacon.js property
 
+### OK, let's make a step counter!
 
-### HTML5 example
+Hold on! Before we jump into the HTML5 accelerometer stuff, let's take a
+half step back. Let's simulate the accelerometer with just a mousemove.
+It's going to be simpler. You'll be able to follow along on your
+desktop/laptops. The accelerometer stuff is icing on the cake.
 
-1. accelerometer data
+### Toy example: write a UI for a thing that simply outputs the location of the mouse cursor.
 
-- map it: {x: y: z:} format to a Signal / Property / Event
-- fold it (scan): generate state (SPM), then with given event, recalculate
-  it.
-- filter it: route the signal to the right place.
+In old Imperative-Land, we would have written this like so:
 
+```js
+$(window).on('mousemove', e => {
+  $('.raw-output').html(`<div>x: ${e.pageX}, y:${e.pageY}</div>`);
+});
+```
+
+Let's step back and build it the FRP Way (tm):
+
+### 1: convert events to streams, the map them to the right format.
+
+```js
+let mouseMoveStream = Rx.Observable.fromEvent(
+  window,
+  'mousemove',
+  (e) => { return e }
+)
+```
+
+Now every time the mouse moves, a JS object is emitted that contains `x`
+and `y` properties. It's clean. It separates the DOM domain from the app
+domain.
+
+But wait! We're not done. We should transform the data into the input
+format we care about. Here's where `map()` comes into play:
+
+```js
+let mouseMoveStream = Rx.Observable.fromEvent(
+  window,
+  'mousemove',
+  (e) => { return e }
+).map((e) => { {x: e.pageX, y: e.pageY} }
+```
+
+### 2. Fold the input(s) into the current state
+
+In our example, the only "state" we keep is the value of the current X
+and Y. So let's use `scan()` to compute the current state:
+
+```js
+let currentState = mouseMoveStream.scan((acc, currentValue) => {
+  return currentValue;
+}, {x: 0, y: 0})
+```
+
+Each time an event comes in, currentState recomputes new state and sets
+its accumulated value to the new value.
+
+### 3. Filter (route) signals to the right outputs.
+
+Now we need to think of the system output. Once the state has been
+recomputed, what needs to change?
+
+```js
+currentState.filter(newState => {
+  return true;
+});
+```
+
+OK, in this toy example, not that much needs to change.
+
+
+### Extra RxJS bit: call `subscribe` to activate the stream and perform side effects.
+
+RxJS tries to be smart and only process signals when it has to, meaning
+streams do not become active until they are `subscribe()`ed to.
+Additionally, your side effects (meaning updating the UI) should occur
+from within the `subscribe()` call.
+
+```js
+currentState.subscribe(newState => {
+  $('.raw-output').html(`<div>x: ${newState.pageX}, y:${newState.pageY}</div>`);
+});
+```
+
+Phew! Let's see it in action.
+
+## Hm. That was kind of cool, but let's make the UI more complex.
+
+
+
+## Addendum/Warnings/Disclaimers
+
+- FRP requires special use cases.
+- FRP has special semantics around handling errors (in streams).
 
 ## Further reading:
 
@@ -296,3 +381,4 @@ In Elm, a signal = a Bacon.js property
 * http://rxmarbles.com/
 * http://reactivex.io/learnrx/
 * https://medium.com/@codeandrop/es7-es2016-generators-observables-oh-my-ba07925f7a80#.z6h47c59n
+* https://github.com/Reactive-Extensions/RxJS/tree/master/doc/designguidelines
