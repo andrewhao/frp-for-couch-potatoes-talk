@@ -1,0 +1,24 @@
+{
+  "name": "pedometer",
+  "version": "0.0.1",
+  "description": "An HTML5 pedometer",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "babel-core": "^6.4.0",
+    "babel-loader": "^6.2.1",
+    "babel-preset-es2015": "^6.3.13",
+    "react-hot-loader": "^1.3.0",
+    "rxjs-es": "^5.0.0-beta.1",
+    "webpack": "^1.12.11",
+    "webpack-dev-server": "^1.14.1"
+  },
+  "dependencies": {
+    "jquery": "^2.2.0",
+    "rx": "^4.0.7"
+  }
+}
