@@ -1,9 +1,12 @@
 var webpack = require('webpack');
 module.exports = {
-	entry: "./pedometer.js",
+	entry: {
+    'example-1': "./pedometer-example-1.js",
+    'example-2': "./pedometer-example-2.js"
+  },
 	output: {
 		path: __dirname,
-		filename: "bundle.js"
+		filename: "bundle.[name].js"
 	},
   plugins: [
   ],
