@@ -164,21 +164,25 @@ data.filter(function(v) { return v > 0; });
 ### Now let's think of these functions in the context of streams.
 
 I'm going to introduce a new way of seeing code. We're going to take a
-timeline of values that pop into existence.
+timeline of values that pop into existence asynchronously. Meaning,
+you're looking at a potentially unbounded array of size infinity, but
+you don't know how long the stream will continue to emit data, or whence
+it will fire. All you know is how to hook up your stream to react to the
+next thing coming down the pipe.
 
 Let's go back and look at our `map` example, but this time, `data` will
-be `dataStream`, some sampling of data that is generated asynchronously,
-such as from a websocket.
+be `dataStream`, some sampling of data that is generated asynchronously.
+Maybe it's from a file, maybe it's from a websocket.
 
 ```js
-var dataStream = bindToDataStream()
-outputStream = dataStream.map(function(datum) { return datum > 0 });
+let dataStream = getAsyncDataStream()
+let outputStream = dataStream.map((datum) => datum > 0);
 ```
 
 Now, when a value pops into existence on the `dataStream`, the `outputStream`
 will also produce a new value:
 
-```
+```js
 data   |-- [1] -- [2] -- [-100] -->
 output |-- [t] -- [t] --    [f] -->
 ```
@@ -186,7 +190,7 @@ output |-- [t] -- [t] --    [f] -->
 Imagine this sort of thing could also happen with filter:
 
 ```js
-outputStream = dataStream.filter(function(v) { return v > 0; });
+let outputStream = dataStream.filter((v) => v > 0);
 
 data   |-- [1] -- [2] -- [-100] -->
 output |-- [1] -- [2] ------------>
@@ -198,13 +202,13 @@ Now there *is* a `reduce` equivalent in streams, but it's probably not
 what you're looking for. You are probably looking for something like
 `scan`, which is like a partial-reduce.
 
-* `scan()` (aka `fold()`)
+* `scan()`
 
 Like reduce; it emits the intermediate accumulated value when a new
 value shows up.
 
 ```js
-outputStream = dataStream.reduce(function(previousValue, currentValue) {
+let outputStream = dataStream.scan((previousValue, currentValue) => {
   return previousValue + currentValue;
 }, 0)
 
@@ -214,98 +218,43 @@ output |[0] -- [1] -- [3] --- [-97] -->
 
 ### Let's enter the world of FRP
 
-I'm going to hammer home these next few points, but the gist of FRP is:
+I'm going to keep harping on this slide, but it's important. The core
+architecture of FRP apps involves these three steps. If you've fallen
+asleep during this lecture, this is the time to wake up and take notes:
 
-* map input signals
-* fold state
-* filter outputs
+1. **Transform inputs** with `map()`
+2. **Recompute state** with `scan()`
+3. **Update outputs** with `map()` and `filter()`
 
-Let's take an example here with a form that submits a counter on a page.
-
-### 1. Map input signals
-
-OK, so let's formulate all inputs as streams. You'll most likely need to
-do two things:
-
-* Convert events to streams.
-
-This is most likely a user event (DOM event?).
-
-```js
-var stream = blah.asEventStream();
-```
-
-* Map to the correct values.
-
-```js
-var stream.map(function(e) {
-  return e.target.value;
-});
-```
-
-Because we want the actual value, instead of the event stream.
-
-### 2. Fold state.
-
-Here's an overly simplistic idea of what state is:
-
-```js
-newState = reduce(oldState, action)
-```
-
-Here's our Rx tip: our state is managed as a function mapped from old
-state to new, given new input.
-
-```js
-var buttonClickStream = stream; // Something we defined in the past;
-var state = Rx.Observable.startWith({});
-state.foldp()
-```
-
-### FRP overall pattern:
-
-* signals
-* state computation
-* actions
-
-From Elm:
-
-1. transform inputs to streams (map)
-2. merge inputs into signal (merge)
-3. update state of app architecture (foldp (reduce) )
-4. route values to appropriate service (filter)
-
-In Elm, a signal = a Bacon.js property
-
-### OK, let's make a step counter!
-
-Hold on! Before we jump into the HTML5 accelerometer stuff, let's take a
-half step back. Let's simulate the accelerometer with just a mousemove.
-It's going to be simpler. You'll be able to follow along on your
-desktop/laptops. The accelerometer stuff is icing on the cake.
-
-### Toy example: write a UI for a thing that tracks whether the mouse cursor is moving up or down.
+### Make a thing that tracks whether the mouse cursor is moving up or down.
 
 In old Imperative-Land, we would have written this like so:
 
 ```js
-var lastMovedEvent = {x: 0, y: 0};
+var lastMovedCoordinate = {x: 0, y: 0};
 $(window).on('mousemove', e => {
-  let direction = (e.pageY < lastMovedEvent) ? 'up' : 'down'
-  $('.raw-output').html(`Moving ${direction}!`);
-  lastMovedEvent = {x: e.pageX, y: e.pageY};
+  let direction = (e.pageY < lastMovedCoordinate) ? 'up' : 'down'
+  $('.output-container').html(`Moving ${direction}!`);
+  lastMovedCoordinate = {x: e.pageX, y: e.pageY};
 });
 ```
 
-OK, so while this works, it's a little messy. It requires global state.
-It requires extra maintenance of variables outside of scope.
+OK, so while this works, it's a little messy. It requires a state that
+lives out in space, somewhere. It lives in callback code that handles
+three duties: compute UI, update UI, update state.
 
 Let's step back and build it the FRP Way (tm):
 
-### 1: convert events to streams, the map them to the right format.
+### 1. Transform inputs with `map()`
+
+Our first task is to think through our app and ask: what are all the
+inputs from the world? Well we're in luck - the only input this app will
+take is from the mouse cursor.
 
 ```js
 let mouseMoveStream = Rx.Observable.fromEvent(window, 'mousemove')
+
+// mouseMoveStream: --[e]--[e]--[e]--[e]-->
 ```
 
 Now every time the mouse moves, a JS object is emitted that contains
@@ -317,41 +266,68 @@ format we care about. Here's where `map()` comes into play:
 ```js
 let mouseMoveStream = Rx.Observable.fromEvent(window, 'mousemove')
   .map((e) => { {x: e.pageX, y: e.pageY} }
+
+// mouseMoveStream: --[{x:,y:}]--[{x:,y:}]--[{x:,y:}]--[{x:,y:}]-->
 ```
 
 OK. Now we've truly separated out the domain. Now mouseMoveStream
 contains a set of domain objects that correspond to the x and y
 positions of the mouse.
 
-### 2. Fold the input(s) into the current state
+### 2. Recompute application state with `scan()`.
 
-In our example, the only "state" we keep is the value of the last X
-and Y. So let's use `scan()` to recompute the current state.
+Here's another key principle of FRP: state is computed solely from the
+events that come in over our input streams, and nothing more. Let's see
+this in action.
+
+First, we consider what state means to this application. What data do we
+need to store from event to event to be meaningful to our application?
+We need:
+
+* To track the last event that came through, so we can compare our
+  current coordinate and determine whether it moved up or down.
+* To track the current computed directional state of the cursor.
+
+First we come up with an initial state:
 
 ```js
-let currentState = mouseMoveStream.scan((acc, currentValue) => {
-  let newDirection = acc.lastCoordinate.y < currentValue.y ? 'down' :
+let initialState = {lastCoordinate: {x: 0, y: 0}, direction: null};
+```
+
+Note how it is a simple data structure. Next we update the application state
+based on the current (incoming) event.
+
+```js
+let currentState = mouseMoveStream.scan((oldState, newCoordinate) => {
+  let newDirection = oldState.lastCoordinate.y < newCoordinate.y ? 'down' :
 'up';
-  return {lastCoordinate: currentValue, direction: newDirection};
-}, {lastCoordinate: {x: 0, y: 0}, direction: null})
+  return {lastCoordinate: newCoordinate, direction: newDirection};
+}, initialState)
+
+// mouseMoveStream: -----[A]--[B]--[C]--[D]-->
+//    currentState: [-]--[u]--[u]--[d]--[u]-->
 ```
 
 Each time an event comes in, currentState recomputes new state and sets
-its accumulated value to the new value.
+its accumulated value to the new value. Note how we formulate
+`initialState` and set it to some state that makes sense.
 
-### 3. Filter (route) signals to the right outputs.
+### 3. Filter (route) output signals to the right outputs.
 
 Now we need to think of the system output. Once the state has been
-recomputed, what needs to change?
+recomputed, what needs to change? In our app's world, there is a simple
+piece of UI that needs to update.
+
+In RxJS, side effects such as modifying the DOM are performed in
+`subscribe` blocks.
 
 ```js
-let displayedDirection = currentState.map(newState => {
-  // TODO
+currentState.subscribe(newState => {
+  $('.output').text(`Mouse direction is: ${newState.direction}`);
 });
 ```
 
 OK, in this toy example, not that much needs to change.
-
 
 ### Extra RxJS bit: call `subscribe` to activate the stream and perform side effects.
 
@@ -368,12 +344,51 @@ currentState.subscribe(newState => {
 
 Phew! Let's see it in action.
 
-## Hm. That was kind of cool, but let's make the UI more complex.
+## An aside on dataflow
+
+What we've done is model our system in terms of dataflow. You can see
+our simple app works kind of like this:
+
+```plantuml
+title SimpleDataflow
+top to bottom direction
+(mouseMoveStreamDOMEvent) --> (mouseMoveStream) : map
+(mouseMoveStream) --> (currentState) : scan
+(initialState) --> (currentState) : scan
+(currentState) --> (updateDOM) : subscribe
+```
+
+## OK, let's move toward making a pedometer!
+
+I'm going to keep faking out the accelerometer by using the mouse as a proxy.
+
+**TO BE CONTINUED...**
 
 ## Addendum/Warnings/Disclaimers
 
 - FRP requires special use cases.
 - FRP has special semantics around handling errors (in streams).
+
+### FRP overall pattern:
+
+* signals
+* state computation
+* actions
+
+## From Elm:
+
+1. transform inputs to streams (map)
+2. merge inputs into signal (merge)
+3. update state of app architecture (foldp (reduce) )
+4. route values to appropriate service (filter)
+
+In Elm, a signal = a Bacon.js property
+
+## In Redux:
+
+1. Actions are inputs
+2. State is recomputed with reducers
+3. Updates are processed from state.
 
 ## Further reading:
 
