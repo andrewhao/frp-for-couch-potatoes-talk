@@ -17,6 +17,7 @@ world frameworks like React, Flux, and Elm. In the end, you'll not only
 get up to speed about reactive programming, you'll be able to have new insights and tools
 to implement reactive principles in your next project.
 
+## How to run this app and preso:
 
 ## Further reading:
 

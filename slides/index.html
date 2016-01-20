@@ -25,6 +25,17 @@
       }
       .remark-slide-content {
         font-size: 2em;
+        background-size: cover !important;
+        padding: 1em 2em;
+      }
+
+      .remark-slide-number {
+        font-family: 'Fira Code', 'Ubuntu Mono', monospace;
+        font-size: 0.5em;
+      }
+
+      .background-image-contain {
+        background-size: contain !important;
       }
 
       .remark-slide-content h1 {
@@ -40,6 +51,23 @@
       .small-code .remark-code {
         font-size: 0.8em;
       }
+      .xsmall-code .remark-code {
+        font-size: 0.7em;
+      }
+      .white-text {
+        color: white;
+      }
+
+      table {
+        border: 1px solid gray;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        text-align: left;
+        border: 1px solid gray;
+        padding: 0.3em 0.5em;
+      }
     </style>
   </head>
   <body>
@@ -47,7 +75,7 @@
     </script>
     <script>
 var slideshow = remark.create({
-  ratio: '16:9',
+  ratio: '16:10',
   sourceUrl: 'slides.md',
   highlightStyle: 'solarized-light'
 });
