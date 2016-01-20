@@ -4,50 +4,42 @@ import $ from 'jquery';
 let mouseMoveStream = Rx.Observable.fromEvent(document, 'mousemove')
   .map(evt => ({x: evt.pageX, y: evt.pageY}))
 
-let mouseVelocityStream = mouseMoveStream
-  .timestamp()
+let deltaYStream = mouseMoveStream
   .pairwise()
-  .map((coordinatePair) => {
-    let [first, last] = coordinatePair;
-    let deltaTime = (last.timestamp - first.timestamp) / 1000;
-    let deltaY = last.value.y - first.value.y;
-    return deltaY / deltaTime;
+  .map(coordinatePair => {
+    let [coord1, coord2] = coordinatePair
+    return (coord2.y - coord1.y) > 0
   })
 
-mouseVelocityStream.subscribe(velocity => {
-  $('.velocity-output').text(`Mouse velocity is: ${velocity} pixels/s`);
-});
-
-let mouseAccelStream = mouseVelocityStream
-  .timestamp()
+let directionStream = deltaYStream
   .pairwise()
-  .map((coordinatePair) => {
-    let [first, last] = coordinatePair;
-    let deltaTime = (last.timestamp - first.timestamp) / 1000;
-    let deltaVelocity = last.value - first.value;
-    return deltaVelocity / deltaTime;
+  .filter(pairs => {
+    let [delta1, delta2] = pairs
+    return delta1 != delta2
   })
+  .map(directionPairs => {
+    let [first, last] = directionPairs
+    return (first === true && last === false) ? 'up' : 'down'
+  });
 
-mouseAccelStream.subscribe(acceleration => {
-  $('.acceleration-output').text(`Mouse acceleration is: ${acceleration} pixels/s^2`);
-});
+let stepIncrementStream = directionStream.scan((acc, dir) => acc + 1, 0)
+  .map(count => (count % 2))
 
-let accelDirectionChangeStream = mouseAccelStream
-  .pairwise()
-	.map(values => {
-		let [first, last] = values;
-		return last - first
-	})
-	.subscribe(v => console.log(`changed? ${v}`))
-	//.map(diff => diff > 0 ? '+' : '-')
+let combinedStream = Rx.Observable.combineLatest(
+  directionStream,
+  stepIncrementStream,
+  (direction, increment) => {
+    return { direction: direction, increment: increment }
+  }
+).tap(v => console.log(v))
 
-let initialState = {lastCoordinate: {x: 0, y: 0}, direction: '?'};
-let currentState = mouseMoveStream.scan((oldState, newCoordinate) => {
-  let newDirection = oldState.lastCoordinate.y < newCoordinate.y ? 'down' :
-'up';
-  return {lastCoordinate: newCoordinate, direction: newDirection};
+let initialState = {direction: '?', stepCount: 0};
+let currentState = combinedStream.scan((oldState, event) => {
+  let newStepCount = oldState.stepCount + event.increment;
+  return {direction: event.direction, stepCount: newStepCount};
 }, initialState)
 
 currentState.subscribe(newState => {
   $('.output').text(`Mouse direction is: ${newState.direction}`);
+  $('.step-output').text(`Step counter is: ${newState.stepCount}`);
 });
