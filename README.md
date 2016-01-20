@@ -284,52 +284,56 @@ half step back. Let's simulate the accelerometer with just a mousemove.
 It's going to be simpler. You'll be able to follow along on your
 desktop/laptops. The accelerometer stuff is icing on the cake.
 
-### Toy example: write a UI for a thing that simply outputs the location of the mouse cursor.
+### Toy example: write a UI for a thing that tracks whether the mouse cursor is moving up or down.
 
 In old Imperative-Land, we would have written this like so:
 
 ```js
+var lastMovedEvent = {x: 0, y: 0};
 $(window).on('mousemove', e => {
-  $('.raw-output').html(`<div>x: ${e.pageX}, y:${e.pageY}</div>`);
+  let direction = (e.pageY < lastMovedEvent) ? 'up' : 'down'
+  $('.raw-output').html(`Moving ${direction}!`);
+  lastMovedEvent = {x: e.pageX, y: e.pageY};
 });
 ```
+
+OK, so while this works, it's a little messy. It requires global state.
+It requires extra maintenance of variables outside of scope.
 
 Let's step back and build it the FRP Way (tm):
 
 ### 1: convert events to streams, the map them to the right format.
 
 ```js
-let mouseMoveStream = Rx.Observable.fromEvent(
-  window,
-  'mousemove',
-  (e) => { return e }
-)
+let mouseMoveStream = Rx.Observable.fromEvent(window, 'mousemove')
 ```
 
-Now every time the mouse moves, a JS object is emitted that contains `x`
-and `y` properties. It's clean. It separates the DOM domain from the app
-domain.
+Now every time the mouse moves, a JS object is emitted that contains
+the mousemove `event` object.
 
 But wait! We're not done. We should transform the data into the input
 format we care about. Here's where `map()` comes into play:
 
 ```js
-let mouseMoveStream = Rx.Observable.fromEvent(
-  window,
-  'mousemove',
-  (e) => { return e }
-).map((e) => { {x: e.pageX, y: e.pageY} }
+let mouseMoveStream = Rx.Observable.fromEvent(window, 'mousemove')
+  .map((e) => { {x: e.pageX, y: e.pageY} }
 ```
+
+OK. Now we've truly separated out the domain. Now mouseMoveStream
+contains a set of domain objects that correspond to the x and y
+positions of the mouse.
 
 ### 2. Fold the input(s) into the current state
 
-In our example, the only "state" we keep is the value of the current X
-and Y. So let's use `scan()` to compute the current state:
+In our example, the only "state" we keep is the value of the last X
+and Y. So let's use `scan()` to recompute the current state.
 
 ```js
 let currentState = mouseMoveStream.scan((acc, currentValue) => {
-  return currentValue;
-}, {x: 0, y: 0})
+  let newDirection = acc.lastCoordinate.y < currentValue.y ? 'down' :
+'up';
+  return {lastCoordinate: currentValue, direction: newDirection};
+}, {lastCoordinate: {x: 0, y: 0}, direction: null})
 ```
 
 Each time an event comes in, currentState recomputes new state and sets
@@ -341,8 +345,8 @@ Now we need to think of the system output. Once the state has been
 recomputed, what needs to change?
 
 ```js
-currentState.filter(newState => {
-  return true;
+let displayedDirection = currentState.map(newState => {
+  // TODO
 });
 ```
 
@@ -366,8 +370,6 @@ Phew! Let's see it in action.
 
 ## Hm. That was kind of cool, but let's make the UI more complex.
 
-
-
 ## Addendum/Warnings/Disclaimers
 
 - FRP requires special use cases.
@@ -382,3 +384,4 @@ Phew! Let's see it in action.
 * http://reactivex.io/learnrx/
 * https://medium.com/@codeandrop/es7-es2016-generators-observables-oh-my-ba07925f7a80#.z6h47c59n
 * https://github.com/Reactive-Extensions/RxJS/tree/master/doc/designguidelines
+* https://medium.com/@garychambers108/functional-reactive-react-js-b04a8d97a540#.t88xytrdo
