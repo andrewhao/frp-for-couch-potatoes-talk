@@ -6,15 +6,27 @@ class: middle
 
 ---
 
-# Hi, I'm Andrew.
+class: middle
 
---
+# Hi, I'm Andrew.
 
 Friendly neighborhood programmer at Carbon Five.
 
 ---
 
+class: middle
+
+## Before we begin: follow along at home!
+
+[https://github.com/andrewhao/frp-for-couch-potatoes-talk](https://github.com/andrewhao/frp-for-couch-potatoes-talk)
+
+---
+
 # I've been hearing lots about FRP.
+
+--
+
+"Reactive programming is programming with asynchronous data streams."
 
 --
 
@@ -166,6 +178,16 @@ mouseMoveStream = [{x: 0, y: 0},
 
 But what if you thought about it like a pipe? Like you were holding onto
 a pipe of mousemove events coming through. It would look like:
+
+---
+
+class: middle
+
+### "Reactive programming is programming with asynchronous data streams."
+
+???
+
+Back to the mantra of Reactive Programming...
 
 ---
 
@@ -335,7 +357,7 @@ Now, when a value pops into existence on the `dataStream`, the `outputStream`
 will also produce a new value:
 
 ```marbles
-  data: --[1]--[2]--[-100]-->
+  data: ---[1]--[2]--[-100]-->
 output: ---[t]--[t]-----[f]-->
 ```
 
@@ -644,6 +666,13 @@ streams do not become active until they are `subscribe()`ed to.
 Additionally, your side effects (meaning updating the UI) should occur
 from within the `subscribe()` call.
 
+
+---
+
+class: background-image-contain
+
+background-image: url(data_flow_diagram.png)
+
 ---
 
 class: center middle
@@ -654,13 +683,43 @@ Phew! Let's [see it in action](http://localhost:8080/pedometer/example1.html).
 
 class: middle center
 
-## OK, let's make a pedometer!
+## OK, let's make a pedometer!*
+
+(* sorta)
+
+---
+class: background-image-contain
+
+background-image: url(extended-dataflow.png)
+
+???
+
+```plantuml
+title MoreDataflow
+top to bottom direction
+(mouseMoveStreamDOMEvent) --> (mouseMoveStream) : map
+(mouseMoveStream) --> (directionStream) : map
+(directionStream) --> (directionChangeStream) : distinctUntilChanged
+(directionChangeStream) -->(stepTakenStream) : scan/filter/map
+(stepTakenStream) --> (combinedEventStream) : merge
+(directionChangeStream) --> (combinedEventStream) : merge
+(combinedEventStream) --> (currentState) :scan
+(initialState) --> (currentState) : scan
+(currentState) --> (updateDOM) : subscribe 
+```
 
 ---
 
-## Addendum/Warnings/Disclaimers
+### Addendum/Warnings/Disclaimers
 
-- FRP has special semantics around handling errors (in streams).
+FRP has special semantics around handling errors (in streams).
+
+```js
+let someStream = doSomethingRx();
+someStream.catch(e => {
+  // handle error
+})
+```
 
 This is important because we can reason about errors in an explicit
 manner.
@@ -669,9 +728,11 @@ manner.
 
 ## FRP overall pattern:
 
-* Map inputs
-* Recompute state
-* Update output
+| FRP Principle   |
+|-----------------|
+| Map inputs      |
+| Recompute state |
+| Update output   |
 
 ---
 
@@ -689,14 +750,24 @@ Ajax (side effects)
 
 Compose actions as Effects
 
+---
+
+![Elm Signal Graph](elm-signal-graph.png)
+
+---
+
+class: background-image-contain
+
+background-image: url(elm-program.png)
+
+---
+
+## Elm, cont'd
+
 1. transform inputs to streams (map)
 2. merge inputs into signal (merge)
 3. update state of app architecture (foldp (reduce) )
 4. route values to appropriate service (filter)
-
----
-
-![Elm Signal Graph](elm-signal-graph.png)
 
 ---
 
@@ -713,19 +784,41 @@ Compose actions as Effects
 ## In Redux:
 
 ```
-(state, action) => state
+reducer = (state, action) => state
 ```
 
 1. Actions are inputs
 2. State is recomputed with reducers
-3. Updates are processed from state (maybe with React)
+3. Updates & side effects are created from state (React)
+
+---
+
+class: background-image-contain
+
+background-image: url(redux-arch.png)
 
 ---
 
 ## Other things:
 
 * Netflix: RxJS, Falcor, RxJava (Hystrix, circuit breakers)
-* Cycle.js, Bacon.js, ClojureScript
+* Cycle.js, Bacon.js, Highland.js, ClojureScript
+
+---
+
+## Recap:
+
+* Learn to see everything as a stream.
+* Dataflow programming is powerful.
+* FRP frameworks provide lots of tools. Use them!
+* The pattern:
+  - Map inputs      
+  - Recompute state 
+  - Update output
+
+---
+
+The real pedometer: [https://github.com/andrewhao/quickcadence](https://github.com/andrewhao/quickcadence)
 
 ---
 
@@ -734,4 +827,4 @@ Compose actions as Effects
 * https://www.flickr.com/photos/alphageek/210677885/
 * https://www.flickr.com/photos/95744554@N00/156855367/
 * https://www.flickr.com/photos/autowitch/4271929/
-* https://www.flickr.com/photos/internetarchivebookimages/14776039484/in/photolist-ovH4Ks-owozAH-out5BU-oeqsv3-otTiJd-oxF9Sc-owhztQ-oeqtjq-ow7vTa-ounpNS-oeqHPi-ovHg6U-ovTePo-ovDgEz-ovV1e6-oerhYn-otTigj-ovTeqh-odeoCG-ouw1K7-oeUbXo-ovTj4L-oeV6mP-ovTdro-ownwpS-oeroYP-owndJm-odfqdF-oya1G8-ownfcG-oeUr4Y-ow7PyR-ow87f6-oeUXdX-oeUCEo-ovKRkx-oeqBJG-oeqDxc-ou6You-ounadQ-otTtod-ovDjya-oeqrvB-oeqe29-oeq7vo-oeTD3S-oeqMnu-oxFbqx-ovTuvC-ovVnae
+* https://www.flickr.com/photos/internetarchivebookimages/14776039484
