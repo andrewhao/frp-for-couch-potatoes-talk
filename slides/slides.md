@@ -38,7 +38,7 @@ But... what... how... so confused!
 
 * Intro to FRP
 * Building blocks
-* Rx.JS
+* RxJS
 * Build an example project
 * Who else uses FRP?
 
@@ -128,6 +128,8 @@ opens a file, or starts a web request (I mean, heck it's called a
 
 ---
 
+class: small-code
+
 ## Helpful (?) analogy
 
 Streams are changing, asynchronous arrays.
@@ -202,7 +204,7 @@ as events (either explicitly, or as domain events), could be considered streams:
 
 ---
 
-class: middle 
+class: middle
 
 ## Name change!
 
@@ -219,7 +221,7 @@ grow over time, and their changing value sequences are, well, observable.
 
 ### There are things already called Observables out there!
 
-- RxJs has an Observable interface.
+- RxJS has an Observable interface.
 - Anything in the ReactiveX family implements an Observable interface.
 - Bacon.js and Kefir.js also implement Observables.
 - ES7 ships with Observables (it's the FUTURE).
@@ -243,7 +245,7 @@ x: 3 y: 7
 ### F is for Functional.
 
 ```js
-f(x) -> x < 10
+let f(x) = x < 10
 
 x: 1  y: true
 x: 11 y: false
@@ -375,6 +377,8 @@ Marble diagrams are a thing:
 
 ---
 
+class: small-code
+
 ### Marbles, cont'd
 
 Imagine this sort of thing could also happen with filter:
@@ -382,8 +386,8 @@ Imagine this sort of thing could also happen with filter:
 ```js
 let outputStream = dataStream.filter((v) => v > 0);
 
-data   |-- [1] -- [2] -- [-100] -->
-output |-- [1] -- [2] ------------>
+//   data: |-- [1] -- [2] -- [-100] -->
+// output: |-- [1] -- [2] ------------>
 ```
 
 Magic.
@@ -398,7 +402,8 @@ Like reduce; it emits the intermediate accumulated value when a new
 value shows up.
 
 ```js
-let outputStream = dataStream.scan((previousValue, currentValue) => {
+let outputStream = dataStream.scan((previousValue,
+                                    currentValue) => {
   return previousValue + currentValue;
 }, 0)
 
@@ -463,7 +468,8 @@ class: xsmall-code
 ```js
 var lastMovedCoordinate = {x: 0, y: 0};
 $(window).on('mousemove', e => {
-  let direction = (e.pageY < lastMovedCoordinate) ? 'up' : 'down'
+  let direction = (e.pageY < lastMovedCoordinate) ?
+                  'up' : 'down'
   $('.output-container').html(`Moving ${direction}!`);
   lastMovedCoordinate = {x: e.pageX, y: e.pageY};
 });
@@ -498,8 +504,9 @@ class: small-code
 *Ask yourself:* What are the inputs into the app?
 
 ```js
-let mouseMoveStream = Rx.Observable.fromEvent(window,
-                                              'mousemove')
+let mouseMoveStream =
+  Rx.Observable.fromEvent(window,
+                          'mousemove')
 // mouseMoveStream: --[e]--[e]--[e]--[e]-->
 ```
 
@@ -522,7 +529,7 @@ We should transform the data into the input
 format we care about. Here's where `map()` comes into play:
 
 ```js
-let mouseMoveStream = 
+let mouseMoveStream =
   Rx.Observable.fromEvent(window, 'mousemove')
   .map((e) => { {x: e.pageX, y: e.pageY} }
 
@@ -688,6 +695,12 @@ class: middle center
 (* sorta)
 
 ---
+
+class: middle center
+
+[Follow along in the source](https://github.com/andrewhao/frp-for-couch-potatoes-talk/blob/master/pedometer/pedometer-example-2.js)
+
+---
 class: background-image-contain
 
 background-image: url(extended-dataflow.png)
@@ -705,12 +718,12 @@ top to bottom direction
 (directionChangeStream) --> (combinedEventStream) : merge
 (combinedEventStream) --> (currentState) :scan
 (initialState) --> (currentState) : scan
-(currentState) --> (updateDOM) : subscribe 
+(currentState) --> (updateDOM) : subscribe
 ```
 
 ---
 
-### Addendum/Warnings/Disclaimers
+### Error handling
 
 FRP has special semantics around handling errors (in streams).
 
@@ -726,7 +739,7 @@ manner.
 
 ---
 
-## FRP overall pattern:
+## FRP overall pattern
 
 | FRP Principle   |
 |-----------------|
@@ -734,9 +747,13 @@ manner.
 | Recompute state |
 | Update output   |
 
+--
+
+Watch as we apply these to other frameworks.
+
 ---
 
-## From Elm:
+## From Elm...
 
 | FRP Principle   | Elm              |
 |-----------------|------------------|
@@ -764,14 +781,14 @@ background-image: url(elm-program.png)
 
 ## Elm, cont'd
 
-1. transform inputs to streams (map)
-2. merge inputs into signal (merge)
-3. update state of app architecture (foldp (reduce) )
-4. route values to appropriate service (filter)
+1. transform inputs to streams (`map`)
+2. merge inputs into signal (`merge`)
+3. update state of app architecture (`foldp`)
+4. route values to appropriate service (`filter`)
 
 ---
 
-## Redux
+## ...to Redux
 
 | FRP Principle   | Redux     |
 |-----------------|-----------|
@@ -799,30 +816,59 @@ background-image: url(redux-arch.png)
 
 ---
 
-## Other things:
+## FRP elsewhere
 
-* Netflix: RxJS, Falcor, RxJava (Hystrix, circuit breakers)
-* Cycle.js, Bacon.js, Highland.js, ClojureScript
+#### Netflix has some fantastic Reactive talks.
+
+RxJS, Falcor, RxJava (Hystrix, circuit breakers)
+
+#### Many other FRP frameworks/languages out there.
+
+Cycle.js, Bacon.js, Highland.js, ClojureScript, Elm
 
 ---
 
-## Recap:
+### Further reading (and many thanks!)
+
+* ["The Introduction to Reactive Programming You've Been Missing"](https://gist.github.com/staltz/868e7e9bc2a7b8c1f754)
+* ["OMG Streams!"](https://www.youtube.com/watch?v=3iKkwzlch0o)
+* RxMarbles: http://rxmarbles.com/
+* ReactiveX: http://reactivex.io/learnrx/
+
+---
+
+## Recap
 
 * Learn to see everything as a stream.
 * Dataflow programming is powerful.
 * FRP frameworks provide lots of tools. Use them!
 * The pattern:
-  - Map inputs      
-  - Recompute state 
+  - Map inputs
+  - Recompute state
   - Update output
 
 ---
 
-The real pedometer: [https://github.com/andrewhao/quickcadence](https://github.com/andrewhao/quickcadence)
+class: middle center
+
+### I made a pedometer, I swear.
+
+[https://github.com/andrewhao/quickcadence](https://github.com/andrewhao/quickcadence)
 
 ---
 
-## Image attributions:
+class: middle center
+
+### Thanks!
+
+https://www.github.com/andrewhao
+https://www.twitter.com/andrewhao
+
+---
+
+class: middle
+
+### Image attributions:
 
 * https://www.flickr.com/photos/alphageek/210677885/
 * https://www.flickr.com/photos/95744554@N00/156855367/
