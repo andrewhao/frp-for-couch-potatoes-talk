@@ -46,8 +46,6 @@
 
 	'use strict';
 
-	var _slicedToArray = function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; }();
-
 	var _rx = __webpack_require__(1);
 
 	var _rx2 = _interopRequireDefault(_rx);
@@ -58,53 +56,47 @@
 
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
+	// -------------------------------------------------
+	// 1) Transform inputs
+	// -------------------------------------------------
 	var mouseMoveStream = _rx2.default.Observable.fromEvent(document, 'mousemove').map(function (evt) {
 	  return { x: evt.pageX, y: evt.pageY };
 	});
 
-	var deltaYStream = mouseMoveStream.pairwise().map(function (coordinatePair) {
-	  var _coordinatePair = _slicedToArray(coordinatePair, 2);
+	// Return false if mouse is moving upwards on the screen,
+	// false if downwards.
+	//       mouseMoveStream: --[u]--[u]--[d]--[u]--[d]-->
+	// directionChangeStream: --[u]-------[d]--[u]--[d]-->
+	var directionChangeStream = mouseMoveStream.distinctUntilChanged();
 
-	  var coord1 = _coordinatePair[0];
-	  var coord2 = _coordinatePair[1];
-
-	  return coord2.y - coord1.y > 0;
-	});
-
-	var directionStream = deltaYStream.pairwise().filter(function (pairs) {
-	  var _pairs = _slicedToArray(pairs, 2);
-
-	  var delta1 = _pairs[0];
-	  var delta2 = _pairs[1];
-
-	  return delta1 != delta2;
-	}).map(function (directionPairs) {
-	  var _directionPairs = _slicedToArray(directionPairs, 2);
-
-	  var first = _directionPairs[0];
-	  var last = _directionPairs[1];
-
-	  return first === true && last === false ? 'up' : 'down';
-	});
-
-	var stepIncrementStream = directionStream.scan(function (acc, dir) {
+	// directionChangeStream: --[u]-------[d]--[u]--[d]-->
+	//       stepTakenStream: ------------[s]-------[s]-->
+	var stepTakenStream = directionStream.scan(function (acc, dir) {
 	  return acc + 1;
 	}, 0).map(function (count) {
 	  return count % 2;
+	}).map('step').tap(function (v) {
+	  return console.log('dude!');
 	});
 
-	var combinedStream = _rx2.default.Observable.combineLatest(directionStream, stepIncrementStream, function (direction, increment) {
+	var combinedStream = _rx2.default.Observable.combineLatest(directionChangeStream, stepTakenStream, function (direction, increment) {
 	  return { direction: direction, increment: increment };
 	}).tap(function (v) {
 	  return console.log(v);
 	});
 
+	// -------------------------------------------------
+	// 2) Update state
+	// -------------------------------------------------
 	var initialState = { direction: '?', stepCount: 0 };
 	var currentState = combinedStream.scan(function (oldState, event) {
 	  var newStepCount = oldState.stepCount + event.increment;
 	  return { direction: event.direction, stepCount: newStepCount };
 	}, initialState);
 
+	// -------------------------------------------------
+	// 3) Update UI, perform side effects
+	// -------------------------------------------------
 	currentState.subscribe(function (newState) {
 	  (0, _jquery2.default)('.output').text('Mouse direction is: ' + newState.direction);
 	  (0, _jquery2.default)('.step-output').text('Step counter is: ' + newState.stepCount);

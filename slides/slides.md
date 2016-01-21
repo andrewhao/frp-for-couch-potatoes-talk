@@ -237,6 +237,13 @@ The F in FRP relates to the fact that we are going to be using functions to tran
 * `filter()`
 * `reduce()` / `scan()`
 
+--
+
+And the more advanced stuff:
+
+* `combineLatest()`
+* `zip()`
+
 ???
 
 Now that we have streams of things, let's get to some things you can do with them.
@@ -276,6 +283,8 @@ Perform some sort of aggregate operation on a set of values, iteratively
 returning the result of the last run.
 
 ---
+
+class: small-code
 
 ## `filter()`
 
@@ -397,10 +406,12 @@ asleep during this lecture, this is the time to wake up and take notes:
 
 ---
 
-## An aside on dataflow
+class: middle
 
-What we are going to do is model our system in terms of dataflow. You can see
-our simple app works kind of like this:
+## Dataflow
+
+FRP gives us the ability to model our system at a higher level of
+abstraction that is oriented around the flow of data through our system.
 
 ???
 
@@ -450,7 +461,11 @@ three duties: compute UI, update UI, update state.
 
 class: middle
 
-## Let's step back and build it the FRP Way (tm):
+## Build it again the FRP Way (tm)
+
+???
+
+What if we could build things differently? The FRP way.
 
 ---
 
@@ -458,9 +473,7 @@ class: small-code
 
 ### 1. Transform inputs with `map()`
 
-Our first task is to think through our app and ask: what are all the
-inputs from the world? Well we're in luck - the only input this app will
-take is from the mouse cursor.
+*Ask yourself:* What are the inputs into the app?
 
 ```js
 let mouseMoveStream = Rx.Observable.fromEvent(window,
@@ -469,6 +482,10 @@ let mouseMoveStream = Rx.Observable.fromEvent(window,
 ```
 
 ???
+
+Our first task is to think through our app and ask: what are all the
+inputs from the world? Well we're in luck - the only input this app will
+take is from the mouse cursor.
 
 Now every time the mouse moves, a JS object is emitted that contains
 the mousemove `event` object.
@@ -479,7 +496,7 @@ class: small-code
 
 ### Transform inputs, cont'd
 
-But wait! We're not done. We should transform the data into the input
+We should transform the data into the input
 format we care about. Here's where `map()` comes into play:
 
 ```js
@@ -492,17 +509,26 @@ let mouseMoveStream =
 
 ???
 
-OK. Now we've truly separated out the domain. Now mouseMoveStream
+But wait! We're not done.
+
+Now mouseMoveStream
 contains a set of domain objects that correspond to the x and y
 positions of the mouse.
+
+--
+
+Now this stream is expressive in terms of the domain.
 
 ---
 
 ### 2. Recompute application state with `scan()`.
 
-* To track the last event that came through, so we can compare our
-  current coordinate and determine whether it moved up or down.
-* To track the current computed directional state of the cursor.
+*Ask yourself:* What is the minimum amount of state that my app needs to
+store?
+
+- A: Anything that the UI is dependent upon
+- A: Anything that stores a value that is necessary for future events to
+compute from.
 
 ???
 
@@ -516,7 +542,17 @@ We need:
 
 ---
 
+### Application state for this app:
+
+* To track the last event that came through, so we can compare our
+  current coordinate and determine whether it moved up or down.
+* To track the current computed directional state of the cursor.
+
+---
+
 class: small-code
+
+### A data structure for state
 
 First we come up with an initial state:
 
@@ -569,28 +605,37 @@ currentState.subscribe(newState => {
   );
 });
 ```
-
---
-
-Point being that we need to install handlers that handle state changes
-
 ???
 
 Now we need to think of the system output. Once the state has been
 recomputed, what needs to change? In our app's world, there is a simple
 piece of UI that needs to update.
 
+--
+
+Ours is a simple use case.
+
+???
+
 OK, in this toy example, not that much needs to change.
 
 ---
+
+class: small-code
 
 ### Extra RxJS bit: call `subscribe` to activate the stream and perform side effects.
 
 ```js
 currentState.subscribe(newState => {
-  $('.raw-output').html(`<div>x: ${newState.pageX}, y:${newState.pageY}</div>`);
+  $('.raw-output').html(
+    `<div>x: ${newState.pageX}, y:${newState.pageY}</div>`
+  );
 });
 ```
+
+--
+
+Streams are lazily evaluated.
 
 ???
 

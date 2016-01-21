@@ -56,16 +56,25 @@
 
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
+	// -------------------------------------------------
+	// 1) Transform inputs
+	// -------------------------------------------------
 	var mouseMoveStream = _rx2.default.Observable.fromEvent(document, 'mousemove').map(function (evt) {
 	  return { x: evt.pageX, y: evt.pageY };
 	});
 
+	// -------------------------------------------------
+	// 2) Update state
+	// -------------------------------------------------
 	var initialState = { lastCoordinate: { x: 0, y: 0 }, direction: '?' };
 	var currentState = mouseMoveStream.scan(function (oldState, newCoordinate) {
 	  var newDirection = oldState.lastCoordinate.y < newCoordinate.y ? 'down' : 'up';
 	  return { lastCoordinate: newCoordinate, direction: newDirection };
 	}, initialState);
 
+	// -------------------------------------------------
+	// 3) Update UI, perform side effects
+	// -------------------------------------------------
 	currentState.subscribe(function (newState) {
 	  (0, _jquery2.default)('.output').text('Mouse direction is: ' + newState.direction);
 	});
