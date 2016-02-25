@@ -804,9 +804,11 @@ class: center middle
 
 Phew! Let's [see it in action](http://g9labs.com/quickcadence/reference).
 
-[http://g9labs.com/quickcadence/reference](http://tinyurl.com/rxcadence)
+[http://tinyurl.com/rxcadence](http://tinyurl.com/rxcadence)
 
 ---
+
+class: center middle
 
 ![Harness in action](images/live-data-harness.gif)
 
@@ -927,14 +929,6 @@ Cycle.js, Bacon.js, Highland.js, ClojureScript, Elm
   - Map inputs
   - Recompute state
   - Update output
-
----
-
-class: middle center
-
-### I made a pedometer, I swear.
-
-[https://github.com/andrewhao/quickcadence](https://github.com/andrewhao/quickcadence)
 
 ---
 
