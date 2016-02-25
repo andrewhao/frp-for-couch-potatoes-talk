@@ -394,7 +394,7 @@ class: middle
 
 ---
 
-### Clean up the Accelerometer data
+### Normalize the Accelerometer data
 
 ![Data animated](images/raw-data-animated.gif)
 
@@ -402,20 +402,20 @@ class: middle
 
 class: xsmall-code
 
-### Clean up the Accelerometer data
+### Normalize the Accelerometer data
 
 ```js
 let motionData = eventsFromAccelerometer()
-let cleanData = motionEvents.map(acceleration => acceleration.y);
+let normalData = motionEvents.map(acceleration => acceleration.y);
 ```
 ```marbles
 motion: ---[{x:1,y:1,z:1}]--[{x:1,y:2,z:2}]--[{x:1,y:-100,z:1}]-->
-clean:  ---[1]--------------[2]--------------[-100]-->
+normal:  ---[1]--------------[2]--------------[-100]-->
 ```
 
 ```marbles
      +-----------+         +------------+
-+--> |motionData +-------> |cleanedData +-->
++--> |motionData +-------> |normalData  +-->
      +-----------+         +------------+
                     {x:1,                  1
                      y:1,
@@ -443,12 +443,23 @@ background-image: url(images/rxmarbles.png)
 
 * `map`
 * `filter`
-* `reduce`
-* `flatMap`
-* `concatMap`
 * `zip`
+* `flatMap`
+* `reduce`
+* `concatMap`
+* `scan`
 * `pausable`
 * `debounce`
+
+--
+
+Special stream-oriented nuances.
+
+???
+
+These look like normal operators, until you start to realize they have
+specific time, or stream-oriented properties.
+
 ---
 
 class: xsmall-code
@@ -473,6 +484,14 @@ delta:      -[5]-[4]-[2]-[-2]-[-5]-[2]-[3]-[4]->
 change:     -[+]-[+]-[+]-[-]--[-]--[+]-[+]-[+]->
 stepEvents: -------------[S]-------[S]--------->
 ```
+
+--
+
+Little known fact: the derivative of acceleration is also called a jerk.
+
+???
+
+We're mathing the derivative of acceleration - which is also known as a "jerk". But we really only care about jerks that shifts from positive to negative - meaning that the person is shifting their weight downward.
 
 ---
 
@@ -504,35 +523,66 @@ function detectSteps(stream) {
 
 ---
 
-class: xsmall-code
+class: middle xsmall-code
 
-### `scan()`
+### Voila! A beautiful pedometer.
 
-Like reduce; it emits the intermediate accumulated value when a new
-value shows up.
-
-```js
-let outputStream = dataStream.scan((previousValue,
-                                    currentValue) => {
-  return previousValue + currentValue;
-}, 0)
-
-data   |------ [1] -- [2] -- [-100] -->
-output |[0] -- [1] -- [3] --- [-97] -->
 ```
-
-???
-
-Now there *is* a `reduce` equivalent in streams, but it's probably not
-what you're looking for. You are probably looking for something like
-`scan`, which is like a partial-reduce.
+          +--------------+    +------------+   +-----------------+
+{xyz} +-> |normalizeData +->  |detectSteps +-> |calculateCadence +-> 66.31
+          +--------------+    +------------+   +-----------------+
+```
 
 ---
 
-## Let's enter the world of FRP
+class: middle xsmall-code
+
+### Voila! A beautiful pedometer.
+
+```
+
+        +--------------------------------------------------------+
+        |+--------------+    +------------+   +-----------------+|
+{xyz} +>-|normalizeData +->  |detectSteps +-> |calculateCadence |--> 66.31
+        ||              |    |            |   |                 ||
+        |+--------------+    +------------+   +-----------------+|
+        |                    CadenceCounter                      |
+        +--------------------------------------------------------+
+
+```
+
+---
+
+class: middle
+
+So we made a pedometer. Big deal.
+
+## Try making an app.
+
+???
+
+So we made a pedometer, which is basically a transformation function.
+
+Let's do some more complicated things. Like make an app.
+
+Apps are complicated because they have to account for intermediate state. They have to coordinate between multiple inputs and outputs.
+
+---
+
+class: middle
+
+#### *(Psst. We'll only need streams.)*
+
+---
+
+### FRP apps follow a common pattern:
 
 1. **Transform inputs** with `map()`
+--
+
 2. **Recompute state** with `scan()`
+--
+
 3. **Update outputs** with `map()` and `filter()`
 
 ???
@@ -543,91 +593,63 @@ asleep during this lecture, this is the time to wake up and take notes:
 
 ---
 
-class: middle
+class: small-code middle
 
-## Dataflow
+```marbles
+         +------+    +------+      +-----+---------+
+in +---> | map  +--> |      |  +-->+ map | filter  +---> out
+         +------+    |      |  |   +-----+---------+
+                     | scan +--+
+         +------+    |      |  |   +-----+---------+
+in +---> | map  +--> |      |  +-->+ map | filter  +---> out
+         +------+    +------+      +-----+---------+
 
-FRP gives us the ability to model our system at a higher level of
-abstraction that is oriented around the flow of data through our system.
-
-???
-
----
-
-class: background-image-contain
-
-background-image: url(images/data_flow_diagram.png)
-
-???
-
-```plantuml
-title SimpleDataflow
-top to bottom direction
-(mouseMoveStreamDOMEvent) --> (mouseMoveStream) : map
-(mouseMoveStream) --> (currentState) : scan
-(initialState) --> (currentState) : scan
-(currentState) --> (updateDOM) : subscribe
+         1) Xform    2) Recompute  3) Update
 ```
 
----
-
-class: xsmall-code
-
-### Make a thing that tracks whether the mouse cursor is moving up or down.
-
-```js
-var lastMovedCoordinate = {x: 0, y: 0};
-$(window).on('mousemove', e => {
-  let direction = (e.pageY < lastMovedCoordinate) ?
-                  'up' : 'down'
-  $('.output-container').html(`Moving ${direction}!`);
-  lastMovedCoordinate = {x: e.pageX, y: e.pageY};
-});
-```
 --
 
-* But state is stored in an arbritrary context.
-* Callback code manages several responsibilities.
-
-???
-
-OK, so while this works, it's a little messy. It requires a state that
-lives out in space, somewhere. It lives in callback code that handles
-three duties: compute UI, update UI, update state.
+* `in`: DOM events. Domain events. HTTP responses.
+* `out`: DOM updates. Domain events. HTTP requests.
 
 ---
-
-class: middle
-
-## Build it again the FRP Way (tm)
-
-???
-
-What if we could build things differently? The FRP way.
-
----
-
-class: small-code
 
 ### 1. Transform inputs with `map()`
 
 *Ask yourself:* What are the inputs into the app?
 
+---
+
+class: small-code
+
+Well, we have our accelerometer.
+
 ```js
-let mouseMoveStream =
+let accelerometerData =
   Rx.Observable.fromEvent(window,
-                          'mousemove')
-// mouseMoveStream: --[e]--[e]--[e]--[e]-->
+                          'devicemotion')
+  .map(e => Object.assign({}, e.accelerometer))
+
+// accelerometerData: --[ { x:, y:, z: } ]--->
 ```
 
 ???
 
 Our first task is to think through our app and ask: what are all the
 inputs from the world? Well we're in luck - the only input this app will
-take is from the mouse cursor.
+take is from the accelerometer itself.
 
-Now every time the mouse moves, a JS object is emitted that contains
-the mousemove `event` object.
+--
+
+We should also plug that into our pedometer.
+
+```js
+let cadence = cadenceCalculator(accelerometerData)
+.map(cadence => ({ name: CADENCE_EMITTED,
+                   value: cadence }))
+
+// cadence: --[ { name: CADENCE_EMITTED, value: 66.1234 } ]-->
+```
 
 ---
 
@@ -635,28 +657,31 @@ class: small-code
 
 ### Transform inputs, cont'd
 
-We should transform the data into the input
-format we care about. Here's where `map()` comes into play:
+There's also DOM event data to account for:
 
 ```js
-let mouseMoveStream =
-  Rx.Observable.fromEvent(window, 'mousemove')
-  .map((e) => { {x: e.pageX, y: e.pageY} }
+let startButton =
+  Rx.Observable.fromEvent($('button#start'), 'click')
+  .map((e) => { { name: 'START' } } }
 
-// mouseMoveStream: --[{x:,y:}]--[{x:,y:}]--[{x:,y:}]--[{x:,y:}]-->
+// startButton: --[ { name: 'START' } ]-->
 ```
 
-???
+---
 
-But wait! We're not done.
+class: xsmall-code
 
-Now mouseMoveStream
-contains a set of domain objects that correspond to the x and y
-positions of the mouse.
+### Merge these together into an input stream:
 
---
+```js
+let actions = Rx.Observable.merge(
+	startButton,
+	cadence
+)
 
-Now this stream is expressive in terms of the domain.
+// actions: --[ { name: START } ]--
+//            [ { name: CADENCE_EMITTED, value: 66.1234 } ] -->
+```
 
 ---
 
@@ -683,43 +708,38 @@ We need:
 
 ### Application state for this app:
 
-* To track the last event that came through, so we can compare our
-  current coordinate and determine whether it moved up or down.
-* To track the current computed directional state of the cursor.
-
----
-
-class: small-code
-
-### A data structure for state
-
-First we come up with an initial state:
-
 ```js
-let initialState = {lastCoordinate: {x: 0, y: 0},
-                    direction: null};
+const initialState = {
+  cadence: 33.1234,
+  runState: STOPPED,
+}
 ```
+--
 
 Note how it is a simple data structure.
 
 ---
 
-class: small-code
+class: xsmall-code
 
 Next we update the application state based on the current (incoming) event.
 
 ```js
-let currentState = mouseMoveStream.scan(
-  (oldState, newCoordinate) => {
-  let newDirection =
-    oldState.lastCoordinate.y < newCoordinate.y ? 'down' :
-'up';
-  return {lastCoordinate: newCoordinate,
-          direction: newDirection};
-}, initialState)
+let currentState = actions.scan(
+  (oldState, action) => {
+    switch(action.name) {
+    case START:
+      return Object.assign({}, oldState { runState: STARTED })
+    case CADENCE_EMITTED:
+      return Object.assign({}, oldState, { cadence: action.value })
+    default:
+      return oldState
+    }
+  }, initialState)
+  .startWith(initialState);
 
-// mouseMoveStream: -----[A]--[B]--[C]--[D]-->
-//    currentState: [-]--[u]--[u]--[d]--[u]-->
+// actions: --------------[START]------[CADENCE_EMITTED]--->
+// current: -[{STOPPED}]--[{STARTED}]--[{STARTED, 66.1234}]-->
 ```
 
 ???
@@ -734,29 +754,23 @@ class: small-code
 
 ### 3. Update outputs (UI) upon state change.
 
-In RxJS, side effects such as modifying the DOM are performed in
-`subscribe` blocks.
+Conditionally update the UI based on the state of the app's `runState`.
 
 ```js
-currentState.subscribe(newState => {
+currentState
+.filter(newState => newState.runState === STARTED)
+.subscribe(newState => {
   $('.output').text(
-    `Mouse direction is: ${newState.direction}`
+    `${newState.cadence} steps per minute (SPM)`
   );
 });
 ```
+
 ???
 
 Now we need to think of the system output. Once the state has been
 recomputed, what needs to change? In our app's world, there is a simple
 piece of UI that needs to update.
-
---
-
-Ours is a simple use case.
-
-???
-
-OK, in this toy example, not that much needs to change.
 
 ---
 
@@ -766,15 +780,16 @@ class: small-code
 
 ```js
 currentState.subscribe(newState => {
-  $('.raw-output').html(
-    `<div>x: ${newState.pageX}, y:${newState.pageY}</div>`
-  );
+  // Do side effects like:
+  // Render the DOM
+  // Make an HTTP request
+  // Push an event onto a Websocket
 });
 ```
 
 --
 
-Streams are lazily evaluated.
+Careful! Streams are lazily evaluated!
 
 ???
 
@@ -783,69 +798,17 @@ streams do not become active until they are `subscribe()`ed to.
 Additionally, your side effects (meaning updating the UI) should occur
 from within the `subscribe()` call.
 
-
----
-
-class: background-image-contain
-
-background-image: url(images/data_flow_diagram.png)
-
 ---
 
 class: center middle
 
-Phew! Let's [see it in action](http://localhost:8080/pedometer/example1.html).
+Phew! Let's [see it in action](http://g9labs.com/quickcadence/reference).
+
+[http://g9labs.com/quickcadence/reference](http://tinyurl.com/rxcadence)
 
 ---
 
-class: middle center
-
-## OK, let's make a pedometer!*
-
-(* sorta)
-
----
-
-class: middle center
-
-[Follow along in the source](https://github.com/andrewhao/frp-for-couch-potatoes-talk/blob/master/pedometer/pedometer-example-2.js)
-
----
-class: background-image-contain
-
-background-image: url(images/extended-dataflow.png)
-
-???
-
-```plantuml
-title MoreDataflow
-top to bottom direction
-(mouseMoveStreamDOMEvent) --> (mouseMoveStream) : map
-(mouseMoveStream) --> (directionStream) : map
-(directionStream) --> (directionChangeStream) : distinctUntilChanged
-(directionChangeStream) -->(stepTakenStream) : scan/filter/map
-(stepTakenStream) --> (combinedEventStream) : merge
-(directionChangeStream) --> (combinedEventStream) : merge
-(combinedEventStream) --> (currentState) :scan
-(initialState) --> (currentState) : scan
-(currentState) --> (updateDOM) : subscribe
-```
-
----
-
-### Error handling
-
-FRP has special semantics around handling errors (in streams).
-
-```js
-let someStream = doSomethingRx();
-someStream.catch(e => {
-  // handle error
-})
-```
-
-This is important because we can reason about errors in an explicit
-manner.
+![Harness in action](images/live-data-harness.gif)
 
 ---
 
@@ -856,6 +819,14 @@ manner.
 | Map inputs      |
 | Recompute state |
 | Update output   |
+
+--
+
+Cycle.js: [Reducer pattern](http://staltz.com/reducer-pattern-in-cyclejs.html)
+
+Redux: [Actions/Reducers/React](http://redux.js.org/docs/basics/Reducers.html)
+
+Elm: [Model/Update/View](https://github.com/evancz/elm-architecture-tutorial)
 
 --
 
