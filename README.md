@@ -13,7 +13,7 @@ With this newfound knowledge, we'll build ourselves a pedometer (step counter) w
 an HTML5 device accelerometer, RxJS (a Javascript FRP library), some gumption, and basic math.
 
 We'll even talk a little bit about how these concepts apply to real
-world frameworks like React, Redux, and Elm. In the end, you'll not only
+world frameworks like Redux, Cycle.js and Elm. In the end, you'll not only
 get up to speed about reactive programming, you'll be able to have new insights and tools
 to implement reactive principles in your next project.
 
