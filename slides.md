@@ -14,64 +14,125 @@ Friendly neighborhood programmer at Carbon Five.
 
 ---
 
-class: middle
+class: background-image-contain middle center
 
-## Before we begin: follow along at home!
-
-[https://github.com/andrewhao/frp-for-couch-potatoes-talk](https://github.com/andrewhao/frp-for-couch-potatoes-talk)
+![Carbon Five](http://www.carbonfive.com/images/c5-logo-vertical.png)
 
 ---
 
-# I've been hearing lots about FRP.
+class: middle
 
---
+## I've been an OO programmer for a very long time.
 
-"Reactive programming is programming with asynchronous data streams."
+The paradigms there have served me well.
 
---
+???
 
-But... what... how... so confused!
+As an OO programmer, I've had a lot of exposure to tried-and-true
+aphorisms: the law of demeter. Different modeling patterns.
+
+---
+
+class: middle
+
+## But the functional world was beckoning
+
+* Declarative over imperative
+* Pure functions
+* Dataflow
+* Not having to worry so much about state
+
+???
+
+I read about the powerful functional constructs and combinators. I was
+dazzled by how people described this new world.
+
+---
+
+class: middle
+
+## I'm a runner.
+
+I've been running for a very long time.
+
+---
+
+class: middle center
+
+#### *(Consistently injured for just as long.)*
+
+---
+
+class: middle
+
+## How do I stop getting hurt?
+
+Develop a quicker stride rate
+
+---
+
+class: middle
+
+## Run with a metronome
+
+So you can learn to internalize the correct stride cadence.
+
+???
+
+Sidebar discussion: focusing on cadence is good for your run form. But
+that's a talk for another meetup.
+
+---
+
+class: middle
+
+## Let's dive into reactive
+
+Let's make a pedometer!
+
+???
+
+Reactive programming was my way to both sharpen my functional toolbelt,
+but also a way for me to try to get better in my training as a runner
+and athelete.
+
+---
+
+class: middle center
+
+#### *(Couch potatoes unite.)*
 
 ---
 
 ## Today's talk
 
 * Intro to FRP
-* Building blocks
 * RxJS
-* Build an example project
-* Who else uses FRP?
-
----
-
-### We will be looking at FRP through a Javascript lens.
-
---
-
-* It's popular.
-
---
-
-* You get it.
-
---
-
-* It's frontend and backend.
-
---
-
-* It's not perfect.
-
-
-???
-
-I'm choosing Javascript because it's how I first encountered Rx and streams. And my guess is that you're pretty familiar with Javascript too. We can look at other frameworks and languages later.
+* Building a pedometer
+* Cycle.js
+* Throwing it on a Pebble watch
 
 ---
 
 class: middle
 
-## Streams are your friends.
+I've heard it said:
+
+### "Reactive programming is programming with asynchronous data streams."
+
+---
+
+class: middle
+
+# Oh my.
+
+---
+
+class: middle
+
+OK. Back up. Let's talk about streams.
+
+## Streams are like pipes.
 
 ---
 
@@ -85,21 +146,9 @@ background-image: url(images/pipes_oops.jpg)
 
 background-image: url(images/pipes2.jpg)
 
----
-
-class: top
-
-background-image: url(images/wire.jpg)
-
-## Or wires.
-
----
-
-class: top white-text
+--
 
 background-image: url(images/pipes.jpg)
-
-## I like pipes.
 
 ???
 
@@ -111,33 +160,20 @@ water main, kind of pipe.
 
 ---
 
-## And you're familiar with them.
-
-### Streams are in:
-
-- Unix pipes `|` `>` ..
-- Twitter stream API
-- WebSockets
-- Node `streams` library.
-
-???
-
-Where have you seen streams before? A WebSocket. Anything in Node that
-opens a file, or starts a web request (I mean, heck it's called a
-`stream` after all.)
-
----
-
 class: small-code
 
-## Helpful (?) analogy
+### Helpful (?) analogy
 
-Streams are changing, asynchronous arrays.
+Streams are asynchronous arrays that change over time.
 
 ```js
-let appleStockPrices = [1, 5, 10, 11, 22]
-// [1, 5, 10, 11, 22, 44]
-// [1, 5, 10, 11, 22, 44, 100]
+let prices = [1, 5, 10, 11, 22]
+
+// 5 seconds later...
+[1, 5, 10, 11, 22, 44]
+
+// 10 seconds later...
+[1, 5, 10, 11, 22, 44, 100]
 ```
 
 ???
@@ -147,39 +183,119 @@ peek the entireity of, because it may potentially be infinite.
 
 ---
 
-### If you can build it with Events, you can model it as a stream.
+### Hopefully more helpful analogy
 
-Anything you've been doing with Events can also be modeled as a stream.
+Streams are like arrays, only:
 
-```js
-$(window).on('mousemove', function(e) {
-  console.log(e.target.x, e.target.y);
-  // do something with this new movement.
-});
-```
+* You can't peek "into" the stream to see the past or future.
+* You're holding onto the end of the pipe!
 
-???
+--
 
-For example, you might think about the position of a mouse cursor on a
-screen as a stream. You have probably doing something like this:
+But if you counted up all the values you saw coming out of the end of
+the pipe, you could basically piece that array back together.
 
 ---
 
-## Voila - streams!
-
-What if you thought about this like a pipe of mousemoves... with an unknown number of future values?
+class: middle
 
 ```js
-mouseMoveStream = [{x: 0, y: 0},
-                   {x: 1, y: 122},
-                   {x: 155, y: 23},
-                   THE FUTURE...]
+prices: --[1]
+```
+
+---
+
+class: middle
+
+```js
+prices: --[1]--[5]
+```
+
+---
+
+class: middle
+
+```js
+prices: --[1]--[5]----[10]
+```
+
+---
+
+class: middle
+
+```js
+prices: --[1]--[5]----[10]-------[11]
+```
+
+---
+
+class: middle
+
+```js
+prices: --[1]--[5]----[10]-------[11]------...
 ```
 
 ???
 
-But what if you thought about it like a pipe? Like you were holding onto
-a pipe of mousemove events coming through. It would look like:
+Point being here that you choose to transform a value coming out at the
+end of the pipe.
+
+---
+
+### Streams are in:
+
+Look familiar?
+
+- Unix pipes `|` `>` ..
+- Websockets
+- Node `streams` lib
+- Gulp
+- Express
+
+???
+
+Where have you seen streams before? A WebSocket. Anything in Node that
+opens a file, or starts a web request (usually backed by an
+EventEmitter).
+
+---
+
+### An aside on Node streams
+
+```js
+    +-----+   +-----+   +-----+
++-> |  A  +-> |  B  +-> |  C  +->
+    +-----+   +-----+   +-----+
+```
+
+You may be familiar with Node streams.
+
+* Chainable with `pipe()`
+* Backpressure capabilities to handle mismatched producers/consumers
+
+
+---
+
+### An aside on Node streams
+
+```js
+    +-----+   +-----+   +-----+
++-> |  A  +-> |  B  +-> |  C  +->
+    +-----+   +-----+   +-----+
+```
+
+* BUT: You must manage stream state: `start`, `data`, `end`.
+* BUT: lack of expressive functional operators
+
+---
+
+class: middle
+
+### Let's forget you've ever heard about them (for now).
+
+???
+
+Trust me, this will help clear out the terminology.
 
 ---
 
@@ -193,22 +309,11 @@ Back to the mantra of Reactive Programming...
 
 ---
 
-### Other things that are streamable
+class: middle 
 
-In fact, lots of other things in your software that, previously modeled
-as events (either explicitly, or as domain events), could be considered streams:
+## streams = `Observable`s
 
-- `submittedForm` Event -> `formSubmitStream`
-- `publishedNewsFeed` Event -> `newsFeedPublishStream`
-- Any Node `EventEmitter` is easily converted to a stream.
-
----
-
-class: middle
-
-## Name change!
-
-Streams are, more generically, `Observable`s.
+We will use the terms interchangeably tonight.
 
 ???
 
@@ -217,119 +322,56 @@ going to help. Streams are also termed Observables in Rx-land because
 they are like Arrays (or more generically, Sequences) that continuously
 grow over time, and their changing value sequences are, well, observable.
 
----
-
-### There are things already called Observables out there!
-
-- RxJS has an Observable interface.
-- Anything in the ReactiveX family implements an Observable interface.
-- Bacon.js and Kefir.js also implement Observables.
-- ES7 ships with Observables (it's the FUTURE).
+Like you can subscribe to them, and see how they change.
 
 ---
 
 ### F is for Functional.
+
+```js
+let f = (x) => x + 4
+```
+
+```js
+     +------+
+1 +--> f(x) +--> 5
+     +------+
+```
+
+???
 
 Let's recap: a function is a relationship between a set of inputs and a set of outputs.
 
-```js
-let f(x) = x + 4
-
-x: 1 y: 5
-x: 2 y: 6
-x: 3 y: 7
-```
-
 ---
 
 ### F is for Functional.
 
 ```js
-let f(x) = x < 10
-
-x: 1  y: true
-x: 11 y: false
+let f = (x) => x < 10
 ```
+
+```js
+     +------+
+1 +--> f(x) +--> false
+     +------+
+```
+
+--
+
+You just wait. There's lots more boxes and arrows where that came from.
+
+???
 
 The F in FRP relates to the fact that we are going to be using functions to transform data and connect transformed inputs and outputs.
 
 ---
 
-## Your function(al) toolbelt
-
-* `map()`
-* `filter()`
-* `reduce()` / `scan()`
-
---
-
-And the more advanced stuff:
-
-* `combineLatest()`
-* `zip()`
-
-???
-
-Now that we have streams of things, let's get to some things you can do with them.
-
-You may be familiar with the toolbelt of transformation functions available to programmers today.
-
----
-
-class: small-code
-
-## `map()`
-
-```js
-var data = [1, 2, -100];
-data.map(function(datum) { return datum > 0 });
-// => [true, true, false]
-```
-
----
-
-class: small-code
-
-## `reduce()`
-
-```js
-var data = [1, 2, -100];
-data.reduce(function(previousValue, currentValue) {
-  return previousValue + currentValue;
-}, 0)
-
-// => -97
-```
-
-???
-
-Perform some sort of aggregate operation on a set of values, iteratively
-returning the result of the last run.
-
----
-
-class: small-code
-
-## `filter()`
-
-```js
-var data = [1, 2, -100];
-data.filter(function(v) { return v > 0; });
-
-// => [1, 2]
-```
-
-???
-
-Only accepts values for which criteria returns true.
-
----
-
 class: middle
 
-## Now let's think of these functions in the context of streams.
+## Streamify all the things.
 
-Streamify all the things.
+Now let's think of these functions in the context of streams.
+
 
 ???
 
@@ -346,30 +388,40 @@ Maybe it's from a file, maybe it's from a websocket.
 
 ---
 
-class: small-code
+class: middle
 
-### Streamify it!
+## Step by step, build the pedometer.
+
+---
+
+class: xsmall-code
+
+### Clean up the Accelerometer data
 
 ```js
-let dataStream = getAsyncDataStream()
-let outputStream = dataStream.map((datum) => datum > 0);
+let motionEvents = eventsFromAccelerometer()
+let cleanMotion = motionEvents.map(acceleration => acceleration.y);
 ```
-
-Now, when a value pops into existence on the `dataStream`, the `outputStream`
-will also produce a new value:
+```marbles
+motion: ---[{x:1,y:1,z:1}]--[{x:1,y:2,z:2}]--[{x:1,y:-100,z:1}]-->
+clean:  ---[1]--------------[2]--------------[-100]-->
+```
 
 ```marbles
-  data: ---[1]--[2]--[-100]-->
-output: ---[t]--[t]-----[f]-->
+     +-----------+         +------------+
++--> |motionData +-------> |cleanedData +-->
+     +-----------+         +------------+
+                    {x:1,                  1
+                     y:1,
+                     z:1}
 ```
-
 ---
 
 ## Whoa, what was that?
 
 ```marbles
-  data: --[1]--[2]--[-100]-->
-output: --[t]--[t]-----[f]-->
+  data: ---[1]--[2]--[-100]-->
+output: ---[t]--[t]--[f]----->
 ```
 
 Marble diagrams are a thing:
@@ -377,26 +429,78 @@ Marble diagrams are a thing:
 
 ---
 
-class: small-code
+background-image: url(images/rxmarbles.png)
 
-### Marbles, cont'd
+---
 
-Imagine this sort of thing could also happen with filter:
+### Your Rx functional toolbelt
 
-```js
-let outputStream = dataStream.filter((v) => v > 0);
+* `map`
+* `filter`
+* `reduce`
+* `flatMap`
+* `concatMap`
+* `zip`
+* `pausable`
+* `debounce`
+---
 
-//   data: |-- [1] -- [2] -- [-100] -->
-// output: |-- [1] -- [2] ------------>
+class: xsmall-code
+
+### Peaks and troughs = steps
+
+```marbles
+ accel(m^2/s)
+           20 ^
+              |         XXXXX
+           15 |      XXXX   XXX            XXX
+              |    XXX        XX         XXX
+           10 |   XX           X       XXX
+              | XX             XXX   XXX
+           5  |XX                XXXXX
+              +--------------------------------> time (s)
+                 1   2   3   4   5   6   7   8
 ```
 
-Magic.
+```marbles
+delta:      -[5]-[4]-[2]-[-2]-[-5]-[2]-[3]-[4]->
+change:     -[+]-[+]-[+]-[-]--[-]--[+]-[+]-[+]->
+stepEvents: -------------[S]-------[S]--------->
+```
 
 ---
 
 class: xsmall-code
 
-## `scan()`
+```js
+// stream items of form: { power: 10, time: 1432485925 }
+function detectSteps(stream) {
+  return stream
+  // Group elements in sliding window of pairs
+  .pairwise()
+  // Calculate change and step signals
+  .map(([e1, e2]) => {
+    let powerDiff = e2.power - e1.power;
+    let changeSignal = powerDiff > 0;
+    return {
+      "timestamp": e1.time,
+      "diff": powerDiff,
+      "changeSignal": changeSignal
+    }
+  })
+  // Every time a changeSignal flips, then the event
+  // becomes a step signal.
+  .distinctUntilChanged(v => v.changeSignal)
+  // Smooth out erratic changes in motion.
+  .debounce(DEBOUNCE_THRESHOLD)
+};
+```
+
+---
+
+class: xsmall-code
+
+### `scan()`
 
 Like reduce; it emits the intermediate accumulated value when a new
 value shows up.
