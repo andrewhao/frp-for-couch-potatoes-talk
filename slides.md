@@ -77,19 +77,19 @@ class: middle
 
 class: middle white-text
 
-background-image: url(pipes_oops.jpg)
+background-image: url(images/pipes_oops.jpg)
 
 ## Streams are like pipes.
 
 --
 
-background-image: url(pipes2.jpg)
+background-image: url(images/pipes2.jpg)
 
 ---
 
 class: top
 
-background-image: url(wire.jpg)
+background-image: url(images/wire.jpg)
 
 ## Or wires.
 
@@ -97,7 +97,7 @@ background-image: url(wire.jpg)
 
 class: top white-text
 
-background-image: url(pipes.jpg)
+background-image: url(images/pipes.jpg)
 
 ## I like pipes.
 
@@ -446,7 +446,7 @@ abstraction that is oriented around the flow of data through our system.
 
 class: background-image-contain
 
-background-image: url(data_flow_diagram.png)
+background-image: url(images/data_flow_diagram.png)
 
 ???
 
@@ -678,7 +678,7 @@ from within the `subscribe()` call.
 
 class: background-image-contain
 
-background-image: url(data_flow_diagram.png)
+background-image: url(images/data_flow_diagram.png)
 
 ---
 
@@ -703,7 +703,7 @@ class: middle center
 ---
 class: background-image-contain
 
-background-image: url(extended-dataflow.png)
+background-image: url(images/extended-dataflow.png)
 
 ???
 
@@ -769,13 +769,13 @@ Compose actions as Effects
 
 ---
 
-![Elm Signal Graph](elm-signal-graph.png)
+![Elm Signal Graph](images/elm-signal-graph.png)
 
 ---
 
 class: background-image-contain
 
-background-image: url(elm-program.png)
+background-image: url(images/elm-program.png)
 
 ---
 
@@ -812,7 +812,7 @@ reducer = (state, action) => state
 
 class: background-image-contain
 
-background-image: url(redux-arch.png)
+background-image: url(images/redux-arch.png)
 
 ---
 
