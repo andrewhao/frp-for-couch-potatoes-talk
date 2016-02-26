@@ -86,9 +86,14 @@ that's a talk for another meetup.
 
 class: middle
 
-## Let's dive into reactive
+I've heard it said:
 
-Let's make a pedometer!
+### "Reactive programming is programming with asynchronous data streams."
+---
+
+class: middle
+
+## Let's dive into reactive and make a pedometer.
 
 ???
 
@@ -119,12 +124,6 @@ class: middle
 I've heard it said:
 
 ### "Reactive programming is programming with asynchronous data streams."
-
----
-
-class: middle
-
-# Oh my.
 
 ---
 
@@ -174,6 +173,11 @@ let prices = [1, 5, 10, 11, 22]
 
 // 10 seconds later...
 [1, 5, 10, 11, 22, 44, 100]
+
+// And you get the ability to observe changes:
+prices.on('data', (thing) => console.log(thing))
+
+// => 100
 ```
 
 ???
@@ -189,8 +193,9 @@ Streams are like arrays, only:
 
 * You can't peek "into" the stream to see the past or future.
 * You're holding onto the end of the pipe!
+* You can only observe what comes through, at that moment in time.
 
---
+???
 
 But if you counted up all the values you saw coming out of the end of
 the pipe, you could basically piece that array back together.
@@ -208,7 +213,7 @@ prices: --[1]
 class: middle
 
 ```js
-prices: --[1]--[5]
+prices: --[x]--[5]
 ```
 
 ---
@@ -216,7 +221,7 @@ prices: --[1]--[5]
 class: middle
 
 ```js
-prices: --[1]--[5]----[10]
+prices: --[x]--[x]----[10]
 ```
 
 ---
@@ -224,7 +229,7 @@ prices: --[1]--[5]----[10]
 class: middle
 
 ```js
-prices: --[1]--[5]----[10]-------[11]
+prices: --[x]--[x]----[x]-------[11]
 ```
 
 ---
@@ -232,7 +237,7 @@ prices: --[1]--[5]----[10]-------[11]
 class: middle
 
 ```js
-prices: --[1]--[5]----[10]-------[11]------...
+prices: --[x]--[x]----[x]-------[x]------...
 ```
 
 ???
@@ -246,8 +251,9 @@ end of the pipe.
 
 Look familiar?
 
-- Unix pipes `|` `>` ..
+- Unix pipes: `ls | grep 'foo' > output.log`
 - Websockets
+- Twitter Streaming API
 - Node `streams` lib
 - Gulp
 - Express
@@ -394,22 +400,28 @@ class: middle
 
 ---
 
+### Normalize the Accelerometer data
+
+![Data animated](images/raw-data-animated.gif)
+
+---
+
 class: xsmall-code
 
-### Clean up the Accelerometer data
+### Normalize the Accelerometer data
 
 ```js
-let motionEvents = eventsFromAccelerometer()
-let cleanMotion = motionEvents.map(acceleration => acceleration.y);
+let motionData = eventsFromAccelerometer()
+let normalData = motionEvents.map(acceleration => acceleration.y);
 ```
 ```marbles
 motion: ---[{x:1,y:1,z:1}]--[{x:1,y:2,z:2}]--[{x:1,y:-100,z:1}]-->
-clean:  ---[1]--------------[2]--------------[-100]-->
+normal:  ---[1]--------------[2]--------------[-100]-->
 ```
 
 ```marbles
      +-----------+         +------------+
-+--> |motionData +-------> |cleanedData +-->
++--> |motionData +-------> |normalData  +-->
      +-----------+         +------------+
                     {x:1,                  1
                      y:1,
@@ -417,7 +429,15 @@ clean:  ---[1]--------------[2]--------------[-100]-->
 ```
 ---
 
-## Whoa, what was that?
+class: center
+
+![Normalized](images/normalized-data.gif)
+
+### Better.
+
+---
+
+## Keep your marbles.
 
 ```marbles
   data: ---[1]--[2]--[-100]-->
@@ -437,12 +457,22 @@ background-image: url(images/rxmarbles.png)
 
 * `map`
 * `filter`
-* `reduce`
-* `flatMap`
-* `concatMap`
 * `zip`
-* `pausable`
+* `flatMap`/`concatMap`
+* `reduce`/`scan`
 * `debounce`
+* `combineWithLatest`
+* `merge`
+
+--
+
+Special stream-oriented semantics here.
+
+???
+
+These look like normal operators, until you start to realize they have
+specific time, or stream-oriented properties.
+
 ---
 
 class: xsmall-code
@@ -468,6 +498,12 @@ change:     -[+]-[+]-[+]-[-]--[-]--[+]-[+]-[+]->
 stepEvents: -------------[S]-------[S]--------->
 ```
 
+???
+
+Little known fact: the derivative of acceleration is also called a jerk.
+
+We're mathing the derivative of acceleration - which is also known as a "jerk". But we really only care about jerks that shifts from positive to negative - meaning that the person is shifting their weight downward.
+
 ---
 
 class: xsmall-code
@@ -480,14 +516,12 @@ function detectSteps(stream) {
   .pairwise()
   // Calculate change and step signals
   .map(([e1, e2]) => {
-    let powerDiff = e2.power - e1.power;
-    let changeSignal = powerDiff > 0;
     return {
       "timestamp": e1.time,
-      "diff": powerDiff,
-      "changeSignal": changeSignal
+      "diff": e2.power - e1.power,
     }
   })
+  .map(v => Object.assign(v, { changeSignal: (v > 0) ? '+' : '-' }))
   // Every time a changeSignal flips, then the event
   // becomes a step signal.
   .distinctUntilChanged(v => v.changeSignal)
@@ -500,33 +534,86 @@ function detectSteps(stream) {
 
 class: xsmall-code
 
-### `scan()`
+### Voila! A beautiful pedometer.
 
-Like reduce; it emits the intermediate accumulated value when a new
-value shows up.
-
-```js
-let outputStream = dataStream.scan((previousValue,
-                                    currentValue) => {
-  return previousValue + currentValue;
-}, 0)
-
-data   |------ [1] -- [2] -- [-100] -->
-output |[0] -- [1] -- [3] --- [-97] -->
 ```
-
-???
-
-Now there *is* a `reduce` equivalent in streams, but it's probably not
-what you're looking for. You are probably looking for something like
-`scan`, which is like a partial-reduce.
+          +--------------+    +------------+   +-----------------+
+{xyz} +-> |normalizeData +->  |detectSteps +-> |calculateCadence +-> 66.31
+          +--------------+    +------------+   +-----------------+
+```
 
 ---
 
-## Let's enter the world of FRP
+class: xsmall-code
+
+### Voila! A beautiful pedometer.
+
+```
+
+        +--------------------------------------------------------+
+        |+--------------+    +------------+   +-----------------+|
+{xyz} +>-|normalizeData +->  |detectSteps +-> |calculateCadence |--> 66.31
+        ||              |    |            |   |                 ||
+        |+--------------+    +------------+   +-----------------+|
+        |                       Pedometer                        |
+        +--------------------------------------------------------+
+
+```
+
+---
+
+class: xsmall-code
+
+### Voila! A beautiful pedometer.
+
+```
+        +--------------------------------------------------------+
+        |                                                        |
+{xyz}-->|                       Pedometer                        |--> 66.31
+        |                                                        |
+        +--------------------------------------------------------+
+
+```
+--
+
+Essentially one long transformation.
+
+---
+
+class: middle
+
+### More complicated things lie on the horizon.
+
+Full-featured, rich apps need:
+
+- state management
+- composability
+- modularity
+
+???
+
+So we made a pedometer, which is basically a transformation function.
+
+Let's do some more complicated things. Like make an app.
+
+Apps are complicated because they have to account for intermediate state. They have to coordinate between multiple inputs and outputs.
+
+---
+
+class: middle
+
+#### *(Psst. We'll only need streams.)*
+
+---
+
+### FRP apps follow a common pattern:
 
 1. **Transform inputs** with `map()`
+--
+
 2. **Recompute state** with `scan()`
+--
+
 3. **Update outputs** with `map()` and `filter()`
 
 ???
@@ -537,91 +624,63 @@ asleep during this lecture, this is the time to wake up and take notes:
 
 ---
 
-class: middle
+class: small-code middle
 
-## Dataflow
+```marbles
+         +------+    +------+      +-----+---------+
+in +---> | map  +--> |      |  +-->+ map | filter  +---> out
+         +------+    |      |  |   +-----+---------+
+                     | scan +--+
+         +------+    |      |  |   +-----+---------+
+in +---> | map  +--> |      |  +-->+ map | filter  +---> out
+         +------+    +------+      +-----+---------+
 
-FRP gives us the ability to model our system at a higher level of
-abstraction that is oriented around the flow of data through our system.
-
-???
-
----
-
-class: background-image-contain
-
-background-image: url(images/data_flow_diagram.png)
-
-???
-
-```plantuml
-title SimpleDataflow
-top to bottom direction
-(mouseMoveStreamDOMEvent) --> (mouseMoveStream) : map
-(mouseMoveStream) --> (currentState) : scan
-(initialState) --> (currentState) : scan
-(currentState) --> (updateDOM) : subscribe
+         1) Xform    2) Recompute  3) Update
 ```
 
----
-
-class: xsmall-code
-
-### Make a thing that tracks whether the mouse cursor is moving up or down.
-
-```js
-var lastMovedCoordinate = {x: 0, y: 0};
-$(window).on('mousemove', e => {
-  let direction = (e.pageY < lastMovedCoordinate) ?
-                  'up' : 'down'
-  $('.output-container').html(`Moving ${direction}!`);
-  lastMovedCoordinate = {x: e.pageX, y: e.pageY};
-});
-```
 --
 
-* But state is stored in an arbritrary context.
-* Callback code manages several responsibilities.
-
-???
-
-OK, so while this works, it's a little messy. It requires a state that
-lives out in space, somewhere. It lives in callback code that handles
-three duties: compute UI, update UI, update state.
+* `in`: DOM events. Domain events. HTTP responses.
+* `out`: DOM updates. Domain events. HTTP requests.
 
 ---
-
-class: middle
-
-## Build it again the FRP Way (tm)
-
-???
-
-What if we could build things differently? The FRP way.
-
----
-
-class: small-code
 
 ### 1. Transform inputs with `map()`
 
 *Ask yourself:* What are the inputs into the app?
 
+---
+
+class: small-code
+
+Well, we have our accelerometer.
+
 ```js
-let mouseMoveStream =
+let accelerometerData =
   Rx.Observable.fromEvent(window,
-                          'mousemove')
-// mouseMoveStream: --[e]--[e]--[e]--[e]-->
+                          'devicemotion')
+  .map(e => Object.assign({}, e.accelerometer))
+
+// accelerometerData: --[ { x:, y:, z: } ]--->
 ```
 
 ???
 
 Our first task is to think through our app and ask: what are all the
 inputs from the world? Well we're in luck - the only input this app will
-take is from the mouse cursor.
+take is from the accelerometer itself.
 
-Now every time the mouse moves, a JS object is emitted that contains
-the mousemove `event` object.
+--
+
+We should also plug that into our pedometer.
+
+```js
+let cadence = connectPedometer(accelerometerData)
+.map(cadence => ({ name: CADENCE_EMITTED,
+                   value: cadence }))
+
+// cadence: --[ { name: CADENCE_EMITTED, value: 66.1234 } ]-->
+```
 
 ---
 
@@ -629,28 +688,31 @@ class: small-code
 
 ### Transform inputs, cont'd
 
-We should transform the data into the input
-format we care about. Here's where `map()` comes into play:
+There's also DOM event data to account for:
 
 ```js
-let mouseMoveStream =
-  Rx.Observable.fromEvent(window, 'mousemove')
-  .map((e) => { {x: e.pageX, y: e.pageY} }
+let startButton =
+  Rx.Observable.fromEvent($('button#start'), 'click')
+  .map((e) => { { name: 'START' } } }
 
-// mouseMoveStream: --[{x:,y:}]--[{x:,y:}]--[{x:,y:}]--[{x:,y:}]-->
+// startButton: --[ { name: 'START' } ]-->
 ```
 
-???
+---
 
-But wait! We're not done.
+class: xsmall-code
 
-Now mouseMoveStream
-contains a set of domain objects that correspond to the x and y
-positions of the mouse.
+### Merge these together into an input stream:
 
---
+```js
+let actions = Rx.Observable.merge(
+	startButton,
+	cadence
+)
 
-Now this stream is expressive in terms of the domain.
+// actions: --[ { name: START } ]--
+//            [ { name: CADENCE_EMITTED, value: 66.1234 } ] -->
+```
 
 ---
 
@@ -659,8 +721,8 @@ Now this stream is expressive in terms of the domain.
 *Ask yourself:* What is the minimum amount of state that my app needs to
 store?
 
-- A: Anything that the UI is dependent upon
-- A: Anything that stores a value that is necessary for future events to
+- Anything that the UI is dependent upon
+- Anything that stores a value that is necessary for future events to
 compute from.
 
 ???
@@ -677,43 +739,38 @@ We need:
 
 ### Application state for this app:
 
-* To track the last event that came through, so we can compare our
-  current coordinate and determine whether it moved up or down.
-* To track the current computed directional state of the cursor.
-
----
-
-class: small-code
-
-### A data structure for state
-
-First we come up with an initial state:
-
 ```js
-let initialState = {lastCoordinate: {x: 0, y: 0},
-                    direction: null};
+const initialState = {
+  cadence: 0,
+  runState: STOPPED,
+}
 ```
+--
 
 Note how it is a simple data structure.
 
 ---
 
-class: small-code
+class: xsmall-code
 
 Next we update the application state based on the current (incoming) event.
 
 ```js
-let currentState = mouseMoveStream.scan(
-  (oldState, newCoordinate) => {
-  let newDirection =
-    oldState.lastCoordinate.y < newCoordinate.y ? 'down' :
-'up';
-  return {lastCoordinate: newCoordinate,
-          direction: newDirection};
-}, initialState)
+let currentState = actions.scan(
+  (oldState, action) => {
+    switch(action.name) {
+    case START:
+      return Object.assign({}, oldState { runState: STARTED })
+    case CADENCE_EMITTED:
+      return Object.assign({}, oldState, { cadence: action.value })
+    default:
+      return oldState
+    }
+  }, initialState)
+  .startWith(initialState);
 
-// mouseMoveStream: -----[A]--[B]--[C]--[D]-->
-//    currentState: [-]--[u]--[u]--[d]--[u]-->
+// actions: -----------------[START]--------[CADENCE_EMITTED, 66.12]->
+// current: -[{STOPPED, 0}]--[{STARTED,0}]--[{STARTED, 66.12}]-->
 ```
 
 ???
@@ -728,47 +785,42 @@ class: small-code
 
 ### 3. Update outputs (UI) upon state change.
 
-In RxJS, side effects such as modifying the DOM are performed in
-`subscribe` blocks.
+Conditionally update the UI based on the state of the app's `runState`.
 
 ```js
-currentState.subscribe(newState => {
+currentState
+.filter(newState => newState.runState === STARTED)
+.subscribe(newState => {
   $('.output').text(
-    `Mouse direction is: ${newState.direction}`
+    `${newState.cadence} steps per minute (SPM)`
   );
 });
 ```
+
 ???
 
 Now we need to think of the system output. Once the state has been
 recomputed, what needs to change? In our app's world, there is a simple
 piece of UI that needs to update.
 
---
-
-Ours is a simple use case.
-
-???
-
-OK, in this toy example, not that much needs to change.
-
 ---
 
 class: small-code
 
-### Extra RxJS bit: call `subscribe` to activate the stream and perform side effects.
+### Extra RxJS bit: call `subscribe` to attach an observer and "activate" the stream.
 
 ```js
 currentState.subscribe(newState => {
-  $('.raw-output').html(
-    `<div>x: ${newState.pageX}, y:${newState.pageY}</div>`
-  );
+  // Perform side effects like:
+  // Render the DOM
+  // Make an HTTP request
+  // Push an event onto a Websocket
 });
 ```
 
 --
 
-Streams are lazily evaluated.
+(Cold) streams produce values only after an Observer attaches.
 
 ???
 
@@ -777,158 +829,209 @@ streams do not become active until they are `subscribe()`ed to.
 Additionally, your side effects (meaning updating the UI) should occur
 from within the `subscribe()` call.
 
-
 ---
 
-class: background-image-contain
+class: center middle
 
-background-image: url(images/data_flow_diagram.png)
+### Phew! Let's see it in action.
+
+[http://tinyurl.com/rxcadence](http://tinyurl.com/rxcadence)
+
+(Open this on your phone!)
 
 ---
 
 class: center middle
 
-Phew! Let's [see it in action](http://localhost:8080/pedometer/example1.html).
+![Harness in action](images/live-data-harness.gif)
 
 ---
 
-class: middle center
+class: center
 
-## OK, let's make a pedometer!*
+## Zoom out: Organizing your FRP app with Cycle.js
 
-(* sorta)
+<img src="images/cyclejs_logo.svg" width=200 />
+
+---
+
+class: center
+
+### High level insight from Cycle: apps are really feedback loops:
+
+<img src="images/cycle-loop.png" width=600 />
 
 ---
 
-class: middle center
+### Dialogue Abstraction
 
-[Follow along in the source](https://github.com/andrewhao/frp-for-couch-potatoes-talk/blob/master/pedometer/pedometer-example-2.js)
+The computer is a function,
+* Taking **inputs** from the keyboard, mouse, touchscreen,
+* and **outputs** through the screen, vibration, speakers.
+
+The human is a function,
+* Taking **inputs** from their eyes, hands, ears,
+* and **outputs** through their fingers.
 
 ---
-class: background-image-contain
 
-background-image: url(images/extended-dataflow.png)
+class: middle
 
-???
+### Inputs and outputs you say?
 
-```plantuml
-title MoreDataflow
-top to bottom direction
-(mouseMoveStreamDOMEvent) --> (mouseMoveStream) : map
-(mouseMoveStream) --> (directionStream) : map
-(directionStream) --> (directionChangeStream) : distinctUntilChanged
-(directionChangeStream) -->(stepTakenStream) : scan/filter/map
-(stepTakenStream) --> (combinedEventStream) : merge
-(directionChangeStream) --> (combinedEventStream) : merge
-(combinedEventStream) --> (currentState) :scan
-(initialState) --> (currentState) : scan
-(currentState) --> (updateDOM) : subscribe
+---
+
+class: small-code 
+
+```
+      +------------------------+
+      |                        |
++-----+      Computer          | <--+
+|     |                        |    |
+|     +------------------------+    |
+|                                   |
+|                                   |
+|                                   |
+|     +------------------------+    |
+|     |                        |    |
++---> |      Human             +----+
+      |                        |
+      +------------------------+
 ```
 
 ---
 
-### Error handling
+class: small-code
 
-FRP has special semantics around handling errors (in streams).
+```
+              +------------------------+
+DOM           |                        |  accelerometer evts
+       +------+      Computer          | <--+
+       |      |                        |    |
+       |      +------------------------+    |
+       |                                    |
+       |                                    |
+       |                                    |
+       |      +------------------------+    |
+       |      |                        |    |
+       +----> |      Human             +----+
+see screen    |                        |  moves
+              +------------------------+
+```
+
+---
+
+class: small-code
+
+```
+              +------------------------+
+              |                        |
+       +------+          main()        | <--+
+       |      |                        |    | DeviceMotion
+       |      +-------------+----------+    | Events
+       |                    ^               |
+Virtual|                DOM |          +----+-----+
+    DOM|             Events |          |  Motion  |
+       |                    |          |  Driver  |
+       |           +--------+------+   |          |
+       |           |   DOM         |   +----------+
+       +---------> |   Driver      |
+                   |               |
+                   +-----+--+------+
+                         |  ^
+                         |  |
+                         v  |
+                    +----+--+----+
+                    |    DOM     |
+                    +------------+
+
+```
+
+---
+
+class: xsmall-code
 
 ```js
-let someStream = doSomethingRx();
-someStream.catch(e => {
-  // handle error
-})
+import Rx from 'rx';
+import Cycle from '@cycle/core';
+import {div, input, p, makeDOMDriver} from '@cycle/dom';
+
+function main(sources) {
+  const sinks = {
+    DOM: sources.DOM.select('input').events('change')
+      .map(ev => ev.target.checked)
+      .startWith(false)
+      .map(toggled =>
+        div([
+          input({type: 'checkbox'}), 'Toggle me',
+          p(toggled ? 'ON' : 'off')
+        ])
+      )
+  };
+  return sinks;
+}
+
+Cycle.run(main, {
+  DOM: makeDOMDriver('#app')
+});
 ```
 
-This is important because we can reason about errors in an explicit
-manner.
+---
+
+### See how it's done:
+
+* [Cycle.js Introduction](http://cycle.js.org/getting-started.html)
+* [RxCadence test harness app](https://github.com/andrewhao/quickcadence/blob/master/reference/js/RxJSRunner.js)
 
 ---
 
-## FRP overall pattern
+## FRP reducer pattern
 
-| FRP Principle   |
-|-----------------|
-| Map inputs      |
-| Recompute state |
-| Update output   |
-
---
-
-Watch as we apply these to other frameworks.
+* Cycle.js: [Reducer pattern](http://staltz.com/reducer-pattern-in-cyclejs.html)
+* Redux: [Actions/Reducers/React](http://redux.js.org/docs/basics/Reducers.html)
+* Elm: [Model/Update/View](https://github.com/evancz/elm-architecture-tutorial)
 
 ---
 
-## From Elm...
+## Oh, about the Pebble
 
-| FRP Principle   | Elm              |
-|-----------------|------------------|
-| Map inputs      | `Action`         |
-| Recompute state | `Model`          |
-| Update output   | `View`, `Effect` |
+You can load arbitrary Javascript libraries (like RxJS) on a Pebble!
 
-???
+Cloud Pebble: http://www.cloudpebble.com
 
-Ajax (side effects)
-
-Compose actions as Effects
+PebbleJS: https://pebble.github.io/pebblejs/
 
 ---
 
-![Elm Signal Graph](images/elm-signal-graph.png)
+Cloudpebble:
+
+background-image: url(images/cloudpebble.png)
 
 ---
 
-class: background-image-contain
+class: center
 
-background-image: url(images/elm-program.png)
+### Sweetcadence
 
----
-
-## Elm, cont'd
-
-1. transform inputs to streams (`map`)
-2. merge inputs into signal (`merge`)
-3. update state of app architecture (`foldp`)
-4. route values to appropriate service (`filter`)
+<a href="https://apps.getpebble.com/en_US/application/5637f7b277a1ea0c45000009A"><img src="images/pebble-appstore.png" width=300px /></a>
 
 ---
 
-## ...to Redux
+## Recap
 
-| FRP Principle   | Redux     |
-|-----------------|-----------|
-| Map inputs      | `Action` is a Redux event    |
-| Recompute state | `Reducer` applied on a store |
-| Update output   | `React` to update UI         |
+* Learn to see everything as a stream.
+* Slowly build your tool familiarity with RxJS. They are powerful, but
+  they have a learning curve.
 
 ---
 
-## In Redux:
+## Recap (cont'd)
 
-```
-reducer = (state, action) => state
-```
-
-1. Actions are inputs
-2. State is recomputed with reducers
-3. Updates & side effects are created from state (React)
-
----
-
-class: background-image-contain
-
-background-image: url(images/redux-arch.png)
-
----
-
-## FRP elsewhere
-
-#### Netflix has some fantastic Reactive talks.
-
-RxJS, Falcor, RxJava (Hystrix, circuit breakers)
-
-#### Many other FRP frameworks/languages out there.
-
-Cycle.js, Bacon.js, Highland.js, ClojureScript, Elm
+* Reducer pattern:
+  - Map inputs
+  - Recompute state
+  - Update output
+* Abstract your app as a dialogue between the user and the system.
 
 ---
 
@@ -938,26 +1041,7 @@ Cycle.js, Bacon.js, Highland.js, ClojureScript, Elm
 * ["OMG Streams!"](https://www.youtube.com/watch?v=3iKkwzlch0o)
 * RxMarbles: http://rxmarbles.com/
 * ReactiveX: http://reactivex.io/learnrx/
-
----
-
-## Recap
-
-* Learn to see everything as a stream.
-* Dataflow programming is powerful.
-* FRP frameworks provide lots of tools. Use them!
-* The pattern:
-  - Map inputs
-  - Recompute state
-  - Update output
-
----
-
-class: middle center
-
-### I made a pedometer, I swear.
-
-[https://github.com/andrewhao/quickcadence](https://github.com/andrewhao/quickcadence)
+* Cycle.js docs: http://cycle.js.org
 
 ---
 
@@ -965,8 +1049,11 @@ class: middle center
 
 ### Thanks!
 
-https://www.github.com/andrewhao
-https://www.twitter.com/andrewhao
+**Github**: [andrewhao](https://www.github.com/andrewhao)
+
+**Twitter**: [@andrewhao](https://www.twitter.com/andrewhao)
+
+**Email**: [andrew@carbonfive.com](mailto:andrew@carbonfive.com)
 
 ---
 
@@ -978,3 +1065,4 @@ class: middle
 * https://www.flickr.com/photos/95744554@N00/156855367/
 * https://www.flickr.com/photos/autowitch/4271929/
 * https://www.flickr.com/photos/internetarchivebookimages/14776039484
+* 
