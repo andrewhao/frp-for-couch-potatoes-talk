@@ -86,9 +86,14 @@ that's a talk for another meetup.
 
 class: middle
 
-## Let's dive into reactive
+I've heard it said:
 
-Let's make a pedometer!
+### "Reactive programming is programming with asynchronous data streams."
+---
+
+class: middle
+
+## Let's dive into reactive and make a pedometer.
 
 ???
 
@@ -119,12 +124,6 @@ class: middle
 I've heard it said:
 
 ### "Reactive programming is programming with asynchronous data streams."
-
----
-
-class: middle
-
-# Oh my.
 
 ---
 
@@ -174,6 +173,11 @@ let prices = [1, 5, 10, 11, 22]
 
 // 10 seconds later...
 [1, 5, 10, 11, 22, 44, 100]
+
+// And you get the ability to observe changes:
+prices.on('data', (thing) => console.log(thing))
+
+// => 100
 ```
 
 ???
@@ -189,8 +193,9 @@ Streams are like arrays, only:
 
 * You can't peek "into" the stream to see the past or future.
 * You're holding onto the end of the pipe!
+* You can only observe what comes through, at that moment in time.
 
---
+???
 
 But if you counted up all the values you saw coming out of the end of
 the pipe, you could basically piece that array back together.
@@ -208,7 +213,7 @@ prices: --[1]
 class: middle
 
 ```js
-prices: --[1]--[5]
+prices: --[x]--[5]
 ```
 
 ---
@@ -216,7 +221,7 @@ prices: --[1]--[5]
 class: middle
 
 ```js
-prices: --[1]--[5]----[10]
+prices: --[x]--[x]----[10]
 ```
 
 ---
@@ -224,7 +229,7 @@ prices: --[1]--[5]----[10]
 class: middle
 
 ```js
-prices: --[1]--[5]----[10]-------[11]
+prices: --[x]--[x]----[x]-------[11]
 ```
 
 ---
@@ -232,7 +237,7 @@ prices: --[1]--[5]----[10]-------[11]
 class: middle
 
 ```js
-prices: --[1]--[5]----[10]-------[11]------...
+prices: --[x]--[x]----[x]-------[x]------...
 ```
 
 ???
@@ -246,8 +251,9 @@ end of the pipe.
 
 Look familiar?
 
-- Unix pipes `|` `>` ..
+- Unix pipes: `ls | grep 'foo' > output.log`
 - Websockets
+- Twitter Streaming API
 - Node `streams` lib
 - Gulp
 - Express
@@ -423,7 +429,15 @@ normal:  ---[1]--------------[2]--------------[-100]-->
 ```
 ---
 
-## Whoa, what was that?
+class: center
+
+![Normalized](images/normalized-data.gif)
+
+### Better.
+
+---
+
+## Keep your marbles.
 
 ```marbles
   data: ---[1]--[2]--[-100]-->
@@ -444,16 +458,15 @@ background-image: url(images/rxmarbles.png)
 * `map`
 * `filter`
 * `zip`
-* `flatMap`
-* `reduce`
-* `concatMap`
-* `scan`
-* `pausable`
+* `flatMap`/`concatMap`
+* `reduce`/`scan`
 * `debounce`
+* `combineWithLatest`
+* `merge`
 
 --
 
-Special stream-oriented nuances.
+Special stream-oriented semantics here.
 
 ???
 
@@ -485,11 +498,9 @@ change:     -[+]-[+]-[+]-[-]--[-]--[+]-[+]-[+]->
 stepEvents: -------------[S]-------[S]--------->
 ```
 
---
+???
 
 Little known fact: the derivative of acceleration is also called a jerk.
-
-???
 
 We're mathing the derivative of acceleration - which is also known as a "jerk". But we really only care about jerks that shifts from positive to negative - meaning that the person is shifting their weight downward.
 
@@ -505,14 +516,12 @@ function detectSteps(stream) {
   .pairwise()
   // Calculate change and step signals
   .map(([e1, e2]) => {
-    let powerDiff = e2.power - e1.power;
-    let changeSignal = powerDiff > 0;
     return {
       "timestamp": e1.time,
-      "diff": powerDiff,
-      "changeSignal": changeSignal
+      "diff": e2.power - e1.power,
     }
   })
+  .map(v => Object.assign(v, { changeSignal: (v > 0) ? '+' : '-' }))
   // Every time a changeSignal flips, then the event
   // becomes a step signal.
   .distinctUntilChanged(v => v.changeSignal)
@@ -523,7 +532,7 @@ function detectSteps(stream) {
 
 ---
 
-class: middle xsmall-code
+class: xsmall-code
 
 ### Voila! A beautiful pedometer.
 
@@ -535,7 +544,7 @@ class: middle xsmall-code
 
 ---
 
-class: middle xsmall-code
+class: xsmall-code
 
 ### Voila! A beautiful pedometer.
 
@@ -546,18 +555,40 @@ class: middle xsmall-code
 {xyz} +>-|normalizeData +->  |detectSteps +-> |calculateCadence |--> 66.31
         ||              |    |            |   |                 ||
         |+--------------+    +------------+   +-----------------+|
-        |                    CadenceCounter                      |
+        |                       Pedometer                        |
         +--------------------------------------------------------+
 
 ```
 
 ---
 
+class: xsmall-code
+
+### Voila! A beautiful pedometer.
+
+```
+        +--------------------------------------------------------+
+        |                                                        |
+{xyz}-->|                       Pedometer                        |--> 66.31
+        |                                                        |
+        +--------------------------------------------------------+
+
+```
+--
+
+Essentially one long transformation.
+
+---
+
 class: middle
 
-So we made a pedometer. Big deal.
+### More complicated things lie on the horizon.
 
-## Try making an app.
+Full-featured, rich apps need:
+
+- state management
+- composability
+- modularity
 
 ???
 
@@ -644,7 +675,7 @@ take is from the accelerometer itself.
 We should also plug that into our pedometer.
 
 ```js
-let cadence = cadenceCalculator(accelerometerData)
+let cadence = connectPedometer(accelerometerData)
 .map(cadence => ({ name: CADENCE_EMITTED,
                    value: cadence }))
 
@@ -690,8 +721,8 @@ let actions = Rx.Observable.merge(
 *Ask yourself:* What is the minimum amount of state that my app needs to
 store?
 
-- A: Anything that the UI is dependent upon
-- A: Anything that stores a value that is necessary for future events to
+- Anything that the UI is dependent upon
+- Anything that stores a value that is necessary for future events to
 compute from.
 
 ???
@@ -710,7 +741,7 @@ We need:
 
 ```js
 const initialState = {
-  cadence: 33.1234,
+  cadence: 0,
   runState: STOPPED,
 }
 ```
@@ -738,8 +769,8 @@ let currentState = actions.scan(
   }, initialState)
   .startWith(initialState);
 
-// actions: --------------[START]------[CADENCE_EMITTED]--->
-// current: -[{STOPPED}]--[{STARTED}]--[{STARTED, 66.1234}]-->
+// actions: -----------------[START]--------[CADENCE_EMITTED, 66.12]->
+// current: -[{STOPPED, 0}]--[{STARTED,0}]--[{STARTED, 66.12}]-->
 ```
 
 ???
@@ -776,11 +807,11 @@ piece of UI that needs to update.
 
 class: small-code
 
-### Extra RxJS bit: call `subscribe` to activate the stream and perform side effects.
+### Extra RxJS bit: call `subscribe` to attach an observer and "activate" the stream.
 
 ```js
 currentState.subscribe(newState => {
-  // Do side effects like:
+  // Perform side effects like:
   // Render the DOM
   // Make an HTTP request
   // Push an event onto a Websocket
@@ -789,7 +820,7 @@ currentState.subscribe(newState => {
 
 --
 
-Careful! Streams are lazily evaluated!
+(Cold) streams produce values only after an Observer attaches.
 
 ???
 
@@ -802,9 +833,11 @@ from within the `subscribe()` call.
 
 class: center middle
 
-Phew! Let's [see it in action](http://g9labs.com/quickcadence/reference).
+### Phew! Let's see it in action.
 
 [http://tinyurl.com/rxcadence](http://tinyurl.com/rxcadence)
+
+(Open this on your phone!)
 
 ---
 
@@ -814,100 +847,191 @@ class: center middle
 
 ---
 
-## FRP overall pattern
+class: center
 
-| FRP Principle   |
-|-----------------|
-| Map inputs      |
-| Recompute state |
-| Update output   |
+## Zoom out: Organizing your FRP app with Cycle.js
 
---
-
-Cycle.js: [Reducer pattern](http://staltz.com/reducer-pattern-in-cyclejs.html)
-
-Redux: [Actions/Reducers/React](http://redux.js.org/docs/basics/Reducers.html)
-
-Elm: [Model/Update/View](https://github.com/evancz/elm-architecture-tutorial)
-
---
-
-Watch as we apply these to other frameworks.
+<img src="images/cyclejs_logo.svg" width=200 />
 
 ---
 
-## From Elm...
+class: center
 
-| FRP Principle   | Elm              |
-|-----------------|------------------|
-| Map inputs      | `Action`         |
-| Recompute state | `Model`          |
-| Update output   | `View`, `Effect` |
+### High level insight from Cycle: apps are really feedback loops:
 
-???
-
-Ajax (side effects)
-
-Compose actions as Effects
+<img src="images/cycle-loop.png" width=600 />
 
 ---
 
-![Elm Signal Graph](images/elm-signal-graph.png)
+### Dialogue Abstraction
+
+The computer is a function,
+* Taking **inputs** from the keyboard, mouse, touchscreen,
+* and **outputs** through the screen, vibration, speakers.
+
+The human is a function,
+* Taking **inputs** from their eyes, hands, ears,
+* and **outputs** through their fingers.
 
 ---
 
-class: background-image-contain
+class: middle
 
-background-image: url(images/elm-program.png)
-
----
-
-## Elm, cont'd
-
-1. transform inputs to streams (`map`)
-2. merge inputs into signal (`merge`)
-3. update state of app architecture (`foldp`)
-4. route values to appropriate service (`filter`)
+### Inputs and outputs you say?
 
 ---
 
-## ...to Redux
-
-| FRP Principle   | Redux     |
-|-----------------|-----------|
-| Map inputs      | `Action` is a Redux event    |
-| Recompute state | `Reducer` applied on a store |
-| Update output   | `React` to update UI         |
-
----
-
-## In Redux:
+class: small-code 
 
 ```
-reducer = (state, action) => state
+      +------------------------+
+      |                        |
++-----+      Computer          | <--+
+|     |                        |    |
+|     +------------------------+    |
+|                                   |
+|                                   |
+|                                   |
+|     +------------------------+    |
+|     |                        |    |
++---> |      Human             +----+
+      |                        |
+      +------------------------+
 ```
 
-1. Actions are inputs
-2. State is recomputed with reducers
-3. Updates & side effects are created from state (React)
+---
+
+class: small-code
+
+```
+              +------------------------+
+DOM           |                        |  accelerometer evts
+       +------+      Computer          | <--+
+       |      |                        |    |
+       |      +------------------------+    |
+       |                                    |
+       |                                    |
+       |                                    |
+       |      +------------------------+    |
+       |      |                        |    |
+       +----> |      Human             +----+
+see screen    |                        |  moves
+              +------------------------+
+```
 
 ---
 
-class: background-image-contain
+class: small-code
 
-background-image: url(images/redux-arch.png)
+```
+              +------------------------+
+              |                        |
+       +------+          main()        | <--+
+       |      |                        |    | DeviceMotion
+       |      +-------------+----------+    | Events
+       |                    ^               |
+Virtual|                DOM |          +----+-----+
+    DOM|             Events |          |  Motion  |
+       |                    |          |  Driver  |
+       |           +--------+------+   |          |
+       |           |   DOM         |   +----------+
+       +---------> |   Driver      |
+                   |               |
+                   +-----+--+------+
+                         |  ^
+                         |  |
+                         v  |
+                    +----+--+----+
+                    |    DOM     |
+                    +------------+
+
+```
 
 ---
 
-## FRP elsewhere
+class: xsmall-code
 
-#### Netflix has some fantastic Reactive talks.
+```js
+import Rx from 'rx';
+import Cycle from '@cycle/core';
+import {div, input, p, makeDOMDriver} from '@cycle/dom';
 
-RxJS, Falcor, RxJava (Hystrix, circuit breakers)
+function main(sources) {
+  const sinks = {
+    DOM: sources.DOM.select('input').events('change')
+      .map(ev => ev.target.checked)
+      .startWith(false)
+      .map(toggled =>
+        div([
+          input({type: 'checkbox'}), 'Toggle me',
+          p(toggled ? 'ON' : 'off')
+        ])
+      )
+  };
+  return sinks;
+}
 
-#### Many other FRP frameworks/languages out there.
+Cycle.run(main, {
+  DOM: makeDOMDriver('#app')
+});
+```
 
-Cycle.js, Bacon.js, Highland.js, ClojureScript, Elm
+---
+
+### See how it's done:
+
+* [Cycle.js Introduction](http://cycle.js.org/getting-started.html)
+* [RxCadence test harness app](https://github.com/andrewhao/quickcadence/blob/master/reference/js/RxJSRunner.js)
+
+---
+
+## FRP reducer pattern
+
+* Cycle.js: [Reducer pattern](http://staltz.com/reducer-pattern-in-cyclejs.html)
+* Redux: [Actions/Reducers/React](http://redux.js.org/docs/basics/Reducers.html)
+* Elm: [Model/Update/View](https://github.com/evancz/elm-architecture-tutorial)
+
+---
+
+## Oh, about the Pebble
+
+You can load arbitrary Javascript libraries (like RxJS) on a Pebble!
+
+Cloud Pebble: http://www.cloudpebble.com
+
+PebbleJS: https://pebble.github.io/pebblejs/
+
+---
+
+Cloudpebble:
+
+background-image: url(images/cloudpebble.png)
+
+---
+
+class: center
+
+### Sweetcadence
+
+<a href="https://apps.getpebble.com/en_US/application/5637f7b277a1ea0c45000009A"><img src="images/pebble-appstore.png" width=300px /></a>
+
+---
+
+## Recap
+
+* Learn to see everything as a stream.
+* Slowly build your tool familiarity with RxJS. They are powerful, but
+  they have a learning curve.
+
+---
+
+## Recap (cont'd)
+
+* Reducer pattern:
+  - Map inputs
+  - Recompute state
+  - Update output
+* Abstract your app as a dialogue between the user and the system.
 
 ---
 
@@ -917,18 +1041,7 @@ Cycle.js, Bacon.js, Highland.js, ClojureScript, Elm
 * ["OMG Streams!"](https://www.youtube.com/watch?v=3iKkwzlch0o)
 * RxMarbles: http://rxmarbles.com/
 * ReactiveX: http://reactivex.io/learnrx/
-
----
-
-## Recap
-
-* Learn to see everything as a stream.
-* Dataflow programming is powerful.
-* FRP frameworks provide lots of tools. Use them!
-* The pattern:
-  - Map inputs
-  - Recompute state
-  - Update output
+* Cycle.js docs: http://cycle.js.org
 
 ---
 
@@ -936,8 +1049,11 @@ class: middle center
 
 ### Thanks!
 
-https://www.github.com/andrewhao
-https://www.twitter.com/andrewhao
+**Github**: [andrewhao](https://www.github.com/andrewhao)
+
+**Twitter**: [@andrewhao](https://www.twitter.com/andrewhao)
+
+**Email**: [andrew@carbonfive.com](mailto:andrew@carbonfive.com)
 
 ---
 
@@ -949,3 +1065,4 @@ class: middle
 * https://www.flickr.com/photos/95744554@N00/156855367/
 * https://www.flickr.com/photos/autowitch/4271929/
 * https://www.flickr.com/photos/internetarchivebookimages/14776039484
+* 
