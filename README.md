@@ -19,6 +19,8 @@ to implement reactive principles in your next project.
 
 ### Slides:
 
+[<img src="http://i.imgur.com/11PUQDd.png" width=50% />](http://www.g9labs.com/frp-for-couch-potatoes-talk/)
+
 http://www.g9labs.com/frp-for-couch-potatoes-talk/
 
 ### Demo:
@@ -30,6 +32,12 @@ http://www.g9labs.com/quickcadence
 Cadence counter: https://github.com/andrewhao/quickcadence
 
 Cycle.js test data harness: https://github.com/andrewhao/quickcadence/blob/master/reference/js/RxJSRunner.js
+
+### Pebble app:
+
+[<img src="http://i.imgur.com/0A9Dx4x.png" width=30% />](https://apps.getpebble.com/en_US/application/5637f7b277a1ea0c45000009)
+
+https://apps.getpebble.com/en_US/application/5637f7b277a1ea0c45000009
 
 ## Further reading:
 
