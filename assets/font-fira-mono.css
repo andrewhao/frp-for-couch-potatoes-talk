@@ -2,11 +2,11 @@
   font-family: 'Fira Mono';
   font-style: normal;
   font-weight: 400;
-  src: local('Fira Mono'), local('FiraMono'), url(https://fonts.gstatic.com/s/firamono/v4/SlRWfq1zeqXiYWAN-lnG-qCWcynf_cDxXwCLxiixG1c.ttf) format('truetype');
+  src: local('Fira Mono'), local('FiraMono'), url(http://fonts.gstatic.com/s/firamono/v4/SlRWfq1zeqXiYWAN-lnG-qCWcynf_cDxXwCLxiixG1c.ttf) format('truetype');
 }
 @font-face {
   font-family: 'Fira Mono';
   font-style: normal;
   font-weight: 700;
-  src: local('Fira Mono Bold'), local('FiraMono-Bold'), url(https://fonts.gstatic.com/s/firamono/v4/l24Wph3FsyKAbJ8dfExTZ4nF5uFdDttMLvmWuJdhhgs.ttf) format('truetype');
+  src: local('Fira Mono Bold'), local('FiraMono-Bold'), url(http://fonts.gstatic.com/s/firamono/v4/l24Wph3FsyKAbJ8dfExTZ4nF5uFdDttMLvmWuJdhhgs.ttf) format('truetype');
 }
