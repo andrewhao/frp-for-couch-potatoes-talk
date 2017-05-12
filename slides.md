@@ -319,7 +319,7 @@ class: middle
 
 ## streams = `Observable`s
 
-We will use the terms interchangeably tonight.
+We will use the terms interchangeably today.
 
 ???
 
@@ -412,7 +412,7 @@ class: xsmall-code
 
 ```js
 let motionData = eventsFromAccelerometer()
-let normalData = motionEvents.map(acceleration => acceleration.y);
+let normalData = motionData.map(acceleration => acceleration.y);
 ```
 ```marbles
 motion: ---[{x:1,y:1,z:1}]--[{x:1,y:2,z:2}]--[{x:1,y:-100,z:1}]-->
